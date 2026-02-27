@@ -1,0 +1,13 @@
+package com.demoproject.shoppingcart.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor
+public class AdminAttributeDTO {
+    private Long keyId;   // AttributeKey ID (FK)
+    private String value;
+}
+

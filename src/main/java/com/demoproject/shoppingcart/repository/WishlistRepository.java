@@ -1,15 +1,16 @@
 package com.demoproject.shoppingcart.repository;
 
-import java.util.List;
-
+import com.demoproject.shoppingcart.model.AppUser;
+import com.demoproject.shoppingcart.model.Product;
+import com.demoproject.shoppingcart.model.WishlistItem;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import com.demoproject.shoppingcart.model.Wishlist;
+import java.util.List;
+import java.util.Optional;
 
-public interface WishlistRepository extends JpaRepository<Wishlist, Long> {
-	
-	//public void deleteByProductId(Long productId);
-	public List<Wishlist> findByUserId(int userId);
-	public void deleteByProductIdAndUserId(Long productId, int userId);
+public interface WishlistRepository extends JpaRepository<WishlistItem, Long> {
 
+    List<WishlistItem> findByUser(AppUser user);
+
+    Optional<WishlistItem> findByUserAndProduct(AppUser user, Product product);
 }
