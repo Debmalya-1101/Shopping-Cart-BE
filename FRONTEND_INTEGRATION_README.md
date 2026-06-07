@@ -578,7 +578,9 @@ The `attributes` array includes `keyName` so the frontend edit form can display 
   "createdAt": "2026-05-11T12:00:00",
   "items": [
     {
+      "productId": 12,
       "productName": "string",
+      "productImageUrl": "https://example.com/main.jpg",
       "price": 1000,
       "quantity": 2,
       "total": 2000

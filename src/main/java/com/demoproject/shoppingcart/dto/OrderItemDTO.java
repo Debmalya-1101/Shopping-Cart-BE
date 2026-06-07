@@ -5,12 +5,23 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
 public class OrderItemDTO {
+    private Long productId;
     private String productName;
+    private String productImageUrl;
     private Long price;
     private Long quantity;
     private Long total;
+
+    public OrderItemDTO(Long productId, String productName, String productImageUrl,
+                        Long price, Long quantity, Long total) {
+        this.productId = productId;
+        this.productName = productName;
+        this.productImageUrl = productImageUrl;
+        this.price = price;
+        this.quantity = quantity;
+        this.total = total;
+    }
 }
 

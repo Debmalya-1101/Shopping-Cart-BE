@@ -80,7 +80,9 @@ public class AdminOrderServiceImpl implements AdminOrderService {
 
         List<OrderItemDTO> items = order.getItems().stream()
                 .map(i -> new OrderItemDTO(
+                        i.getProduct().getId(),
                         i.getProduct().getName(),
+                        i.getProduct().getImageUrl(),
                         i.getPrice(),
                         i.getQuantity(),
                         i.getPrice() * i.getQuantity()
