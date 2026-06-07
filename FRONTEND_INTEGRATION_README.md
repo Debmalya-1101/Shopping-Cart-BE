@@ -146,8 +146,39 @@ Supported admin order query params:
 ### Admin Analytics
 
 | Method | Path | Auth | Request | Response |
-|---|---|---|---|---|
+|---|---|---|---|
 | GET | `/api/admin/analytics/dashboard` | Admin Bearer | None | `DashboardAnalyticsDTO` |
+
+### Admin Categories
+
+Full CRUD for product categories. Each category response includes all its defined attribute keys.
+
+| Method | Path | Auth | Request | Response |
+|---|---|---|---|---|
+| GET | `/api/admin/categories` | Admin Bearer | None | `List<CategoryDTO>` |
+| GET | `/api/admin/categories/{id}` | Admin Bearer | Path param | `CategoryDTO` |
+| POST | `/api/admin/categories` | Admin Bearer | `CreateCategoryRequest` | `CategoryDTO` |
+| PUT | `/api/admin/categories/{id}` | Admin Bearer | `CreateCategoryRequest` | `CategoryDTO` |
+| DELETE | `/api/admin/categories/{id}` | Admin Bearer | Path param | `String` |
+
+> [!WARNING]
+> Deleting a category fails with `400` if any products are still linked to it.
+
+### Admin Attribute Keys
+
+Full CRUD for attribute keys (RAM, ROM, Camera, Storage, etc.) under a category.
+Used to build the attributes section of the product add/edit form.
+
+| Method | Path | Auth | Request | Response |
+|---|---|---|---|---|
+| GET | `/api/admin/attribute-keys` | Admin Bearer | `?categoryId=` (optional) | `List<AdminAttributeKeyDTO>` |
+| GET | `/api/admin/attribute-keys/{id}` | Admin Bearer | Path param | `AdminAttributeKeyDTO` |
+| POST | `/api/admin/attribute-keys` | Admin Bearer | `CreateAttributeKeyRequest` | `AdminAttributeKeyDTO` |
+| PUT | `/api/admin/attribute-keys/{id}` | Admin Bearer | `CreateAttributeKeyRequest` | `AdminAttributeKeyDTO` |
+| DELETE | `/api/admin/attribute-keys/{id}` | Admin Bearer | Path param | `String` |
+
+> [!WARNING]
+> Deleting an attribute key fails with `400` if any product currently has a value for that key.
 
 ## Request DTOs
 
@@ -238,6 +269,9 @@ Supported admin order query params:
 
 ### `CreateProductRequest` and `UpdateProductRequest`
 
+Both `CreateProductRequest` and `UpdateProductRequest` support the `active` boolean field.
+For `CreateProductRequest`, `active` defaults to `true` if not provided.
+
 ```json
 {
   "name": "string",
@@ -247,6 +281,7 @@ Supported admin order query params:
   "stock": 10,
   "categoryId": 1,
   "imageUrl": "string",
+  "active": true,
   "attributes": [
     {
       "keyId": 1,
@@ -264,6 +299,26 @@ Supported admin order query params:
   "stock": 10
 }
 ```
+
+### `CreateCategoryRequest`
+
+```json
+{
+  "name": "Electronics"
+}
+```
+
+### `CreateAttributeKeyRequest`
+
+```json
+{
+  "keyName": "RAM",
+  "type": "TEXT",
+  "categoryId": 1
+}
+```
+
+`type` must be `"TEXT"` or `"NUMBER"`.
 
 ### `UpdateProductStatusRequest`
 
@@ -312,6 +367,48 @@ Supported admin order query params:
   "totalElements": 0,
   "totalPages": 0,
   "last": true
+}
+```
+
+### `CategoryDTO`
+
+Returned by all `/api/admin/categories` endpoints.
+Includes the attribute keys defined for the category so the product edit form can build the attributes panel without a second call.
+
+```json
+{
+  "id": 1,
+  "name": "Electronics",
+  "attributeKeys": [
+    {
+      "id": 1,
+      "keyName": "RAM",
+      "type": "TEXT",
+      "categoryId": 1,
+      "categoryName": "Electronics"
+    },
+    {
+      "id": 2,
+      "keyName": "Battery",
+      "type": "NUMBER",
+      "categoryId": 1,
+      "categoryName": "Electronics"
+    }
+  ]
+}
+```
+
+### `AdminAttributeKeyDTO`
+
+Returned by all `/api/admin/attribute-keys` endpoints.
+
+```json
+{
+  "id": 1,
+  "keyName": "RAM",
+  "type": "TEXT",
+  "categoryId": 1,
+  "categoryName": "Electronics"
 }
 ```
 
@@ -438,6 +535,9 @@ Supported admin order query params:
 
 ### `ProductAdminDTO`
 
+Returned by all admin product GET, POST, and PUT endpoints.
+The `attributes` array includes `keyName` so the frontend edit form can display the attribute label without a separate lookup.
+
 ```json
 {
   "id": 1,
@@ -448,14 +548,19 @@ Supported admin order query params:
   "active": true,
   "brand": "string",
   "categoryId": 1,
+  "categoryName": "string",
   "rating": 4.5,
+  "imageUrl": "string",
+  "imageUrls": ["string"],
   "attributes": [
     {
       "keyId": 1,
-      "value": "string"
+      "keyName": "RAM",
+      "value": "8GB"
     }
   ],
-  "imageUrls": ["string"]
+  "createdAt": "2026-05-11T12:00:00",
+  "updatedAt": "2026-05-11T12:00:00"
 }
 ```
 

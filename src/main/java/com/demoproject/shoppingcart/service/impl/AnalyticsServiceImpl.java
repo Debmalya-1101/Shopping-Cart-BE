@@ -4,6 +4,7 @@ import com.demoproject.shoppingcart.dto.DashboardAnalyticsDTO;
 import com.demoproject.shoppingcart.dto.OrderStatusCountDTO;
 import com.demoproject.shoppingcart.dto.MonthlySalesDTO;
 import com.demoproject.shoppingcart.dto.TopProductDTO;
+import com.demoproject.shoppingcart.model.OrderStatus;
 import com.demoproject.shoppingcart.model.Role;
 import com.demoproject.shoppingcart.repository.OrderRepository;
 import com.demoproject.shoppingcart.repository.UserRepository;
@@ -62,7 +63,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         List<Object[]> data = orderRepository.countOrdersByStatus();
 
         for (Object[] row : data) {
-            String status = (String) row[0];
+            String status = ((OrderStatus) row[0]).name();
             Long count = ((Number) row[1]).longValue();
             result.add(new OrderStatusCountDTO(status, count));
         }

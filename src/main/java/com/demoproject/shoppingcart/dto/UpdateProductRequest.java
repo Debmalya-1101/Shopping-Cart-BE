@@ -38,6 +38,8 @@ public class UpdateProductRequest {
 
     private String imageUrl;
 
+    private Boolean active;
+
     private List<AdminAttributeDTO> attributes;
 
     private List<String> additionalImageUrls;

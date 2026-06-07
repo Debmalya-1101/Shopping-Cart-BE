@@ -7,7 +7,8 @@ import lombok.Setter;
 
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor
 public class AdminAttributeDTO {
-    private Long keyId;   // AttributeKey ID (FK)
+    private Long keyId;       // AttributeKey ID (FK)
+    private String keyName;   // AttributeKey display name (read-only in GET, ignored in POST/PUT)
     private String value;
 }
 

@@ -13,6 +13,7 @@ import com.demoproject.shoppingcart.model.ProductAttribute;
 import com.demoproject.shoppingcart.model.ProductImage;
 import com.demoproject.shoppingcart.model.Category;
 import com.demoproject.shoppingcart.model.AttributeKey;
+import com.demoproject.shoppingcart.model.AttributeType;
 import com.demoproject.shoppingcart.repository.ProductRepository;
 import com.demoproject.shoppingcart.repository.CategoryRepository;
 import com.demoproject.shoppingcart.repository.AttributeKeyRepository;
@@ -61,7 +62,8 @@ public class AdminProductServiceImpl implements AdminProductService {
         product.setStock(request.getStock());
         product.setCategory(category);
         product.setImageUrl(request.getImageUrl());
-        product.setActive(true);
+        // Use active from request; default to true if not provided
+        product.setActive(request.getActive() != null ? request.getActive() : true);
         product.setRating(0.0);
 
         // Add attributes
@@ -73,6 +75,14 @@ public class AdminProductServiceImpl implements AdminProductService {
                 ProductAttribute attr = new ProductAttribute();
                 attr.setAttributeKey(attributeKey);
                 attr.setValueText(attrDTO.getValue());
+                // Also populate valueNumber for NUMBER-typed attributes
+                if (AttributeType.NUMBER.equals(attributeKey.getType()) && attrDTO.getValue() != null) {
+                    try {
+                        attr.setValueNumber(Double.parseDouble(attrDTO.getValue()));
+                    } catch (NumberFormatException ignored) {
+                        // value is not a valid number; leave valueNumber null
+                    }
+                }
                 product.addAttribute(attr);
             }
         }
@@ -106,6 +116,10 @@ public class AdminProductServiceImpl implements AdminProductService {
         product.setStock(request.getStock());
         product.setCategory(category);
         product.setImageUrl(request.getImageUrl());
+        // Update active status if explicitly provided
+        if (request.getActive() != null) {
+            product.setActive(request.getActive());
+        }
 
         // Clear and update attributes
         product.getAttributes().clear();
@@ -117,6 +131,14 @@ public class AdminProductServiceImpl implements AdminProductService {
                 ProductAttribute attr = new ProductAttribute();
                 attr.setAttributeKey(attributeKey);
                 attr.setValueText(attrDTO.getValue());
+                // Also populate valueNumber for NUMBER-typed attributes
+                if (AttributeType.NUMBER.equals(attributeKey.getType()) && attrDTO.getValue() != null) {
+                    try {
+                        attr.setValueNumber(Double.parseDouble(attrDTO.getValue()));
+                    } catch (NumberFormatException ignored) {
+                        // value is not a valid number; leave valueNumber null
+                    }
+                }
                 product.addAttribute(attr);
             }
         }
@@ -207,9 +229,8 @@ public class AdminProductServiceImpl implements AdminProductService {
     // ============ Helper Methods ============
 
     private ProductAdminDTO toProductAdminDTO(Product product) {
-        String categoryName = product.getCategory() != null
-                ? product.getCategory().getName()
-                : null;
+        Long categoryId = product.getCategory() != null ? product.getCategory().getId() : null;
+        String categoryName = product.getCategory() != null ? product.getCategory().getName() : null;
 
         List<String> imageUrls = product.getImages()
                 .stream()
@@ -229,18 +250,28 @@ public class AdminProductServiceImpl implements AdminProductService {
                 product.getStock(),
                 product.getActive(),
                 product.getBrand(),
-                product.getCategory() != null ? product.getCategory().getId() : null,
+                categoryId,
+                categoryName,
                 product.getRating(),
+                product.getImageUrl(),    // primary / base image
+                imageUrls,                // additional images
                 attributes,
-                imageUrls
+                product.getCreatedAt(),
+                product.getUpdatedAt()
         );
     }
 
     private AdminAttributeDTO toAdminAttributeDTO(ProductAttribute attr) {
-        return new AdminAttributeDTO(
-                attr.getAttributeKey() != null ? attr.getAttributeKey().getId() : null,
-                attr.getValueText()
-        );
+        AttributeKey key = attr.getAttributeKey();
+        Long keyId = key != null ? key.getId() : null;
+        String keyName = key != null ? key.getKeyName() : null;
+
+        // Prefer valueText; fall back to valueNumber as string
+        String value = StringUtils.hasText(attr.getValueText())
+                ? attr.getValueText()
+                : (attr.getValueNumber() != null ? String.valueOf(attr.getValueNumber()) : null);
+
+        return new AdminAttributeDTO(keyId, keyName, value);
     }
 
     private String mapSortField(String sortBy) {

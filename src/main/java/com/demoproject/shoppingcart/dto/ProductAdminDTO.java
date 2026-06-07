@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Getter
@@ -20,8 +21,12 @@ public class ProductAdminDTO {
     private Boolean active;
     private String brand;
     private Long categoryId;
+    private String categoryName;
     private Double rating;
+    private String imageUrl;           // Primary / base image URL
+    private List<String> imageUrls;    // Additional product images
     private List<AdminAttributeDTO> attributes;
-    private List<String> imageUrls;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }
 
