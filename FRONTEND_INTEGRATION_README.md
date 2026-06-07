@@ -87,7 +87,7 @@ Supported product list query params:
 |---|---|---|---|---|
 | POST | `/api/orders/checkout` | Bearer | `CheckoutRequestDTO` | `OrderResponseDTO` |
 | GET | `/api/orders` | Bearer | None | `List<OrderResponseDTO>` |
-| GET | `/api/orders/{orderId}` | Bearer | Path param | `OrderResponseDTO` |
+| GET | `/api/orders/{orderId}` | Bearer | Path param | `OrderDetailDTO` |
 
 ### Payments
 
@@ -488,6 +488,8 @@ Returned by all `/api/admin/attribute-keys` endpoints.
 
 ### `OrderResponseDTO`
 
+Returned by `POST /api/orders/checkout` and `GET /api/orders` (list view). Intentionally lightweight.
+
 ```json
 {
   "orderId": 1,
@@ -496,12 +498,78 @@ Returned by all `/api/admin/attribute-keys` endpoints.
   "createdAt": "2026-05-11T12:00:00",
   "items": [
     {
+      "productId": 12,
       "productName": "string",
+      "productImageUrl": "https://example.com/main.jpg",
       "price": 1000,
       "quantity": 2,
       "total": 2000
     }
   ]
+}
+```
+
+### `OrderDetailDTO`
+
+Returned **only** by `GET /api/orders/{orderId}`. Provides everything needed to render a full Order Details page. Only the order owner can access this endpoint; any other user receives a `400` error.
+
+```json
+{
+  "orderId": 42,
+  "orderStatus": "SHIPPED",
+  "paymentStatus": "COMPLETED",
+  "totalAmount": 3500,
+  "createdAt": "2026-06-01T10:30:00",
+  "updatedAt": "2026-06-02T08:15:00",
+  "recipientName": "Riya Sharma",
+  "email": "riya@example.com",
+  "phoneNo": 9876543210,
+  "address": "12B, MG Road, Bengaluru, Karnataka 560001",
+  "items": [
+    {
+      "productId": 7,
+      "productName": "Wireless Noise-Cancelling Headphones",
+      "productImageUrl": "https://example.com/images/headphones.jpg",
+      "categoryName": "Electronics",
+      "quantity": 1,
+      "price": 2500,
+      "lineTotal": 2500
+    },
+    {
+      "productId": 14,
+      "productName": "USB-C Charging Cable",
+      "productImageUrl": "https://example.com/images/cable.jpg",
+      "categoryName": "Accessories",
+      "quantity": 2,
+      "price": 500,
+      "lineTotal": 1000
+    }
+  ],
+  "totalItems": 2,
+  "grandTotal": 3500
+}
+```
+
+**Notes:**
+- `orderStatus` is one of: `PLACED`, `SHIPPED`, `DELIVERED`, `CANCELLED`
+- `paymentStatus` is one of: `INITIATED`, `COMPLETED`, `FAILED`
+- `categoryName` on each item is `null` if the product has no category assigned
+- `price` on each item is the **snapshot price captured at checkout**, not the current product price
+- `grandTotal` equals `totalAmount`; both are included for frontend convenience
+
+### `OrderDetailItemDTO`
+
+Used inside `OrderDetailDTO.items`.
+
+```json
+{
+  "productId": 7,
+  "productName": "string",
+  "productImageUrl": "string",
+  "categoryName": "string",
+  "quantity": 1,
+  "price": 2500,
+  "lineTotal": 2500
 }
 ```
 

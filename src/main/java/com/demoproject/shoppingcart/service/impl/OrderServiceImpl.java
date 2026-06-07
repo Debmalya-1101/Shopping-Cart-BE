@@ -1,6 +1,8 @@
 package com.demoproject.shoppingcart.service.impl;
 
 import com.demoproject.shoppingcart.dto.CheckoutRequestDTO;
+import com.demoproject.shoppingcart.dto.OrderDetailDTO;
+import com.demoproject.shoppingcart.dto.OrderDetailItemDTO;
 import com.demoproject.shoppingcart.dto.OrderItemDTO;
 import com.demoproject.shoppingcart.dto.OrderResponseDTO;
 import com.demoproject.shoppingcart.model.*;
@@ -103,7 +105,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public OrderResponseDTO getOrderById(Long orderId) {
+    public OrderDetailDTO getOrderById(Long orderId) {
         AppUser user = getLoggedInUser();
 
         Order order = orderRepository.findById(orderId)
@@ -113,7 +115,7 @@ public class OrderServiceImpl implements OrderService {
             throw new RuntimeException("Unauthorized access");
         }
 
-        return convertToOrderDTO(order);
+        return convertToOrderDetailDTO(order);
     }
 
 
@@ -124,6 +126,8 @@ public class OrderServiceImpl implements OrderService {
         return userRepository.findByUserName(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
     }
+
+    // ── Lightweight DTO used for list view and checkout response ─────────────
 
     private OrderResponseDTO convertToOrderDTO(Order order) {
 
@@ -143,6 +147,47 @@ public class OrderServiceImpl implements OrderService {
                 order.getStatus().name(),
                 order.getCreatedAt(),
                 items
+        );
+    }
+
+    // ── Rich DTO used for the Order Details page ──────────────────────────────
+
+    private OrderDetailDTO convertToOrderDetailDTO(Order order) {
+
+        List<OrderDetailItemDTO> items = order.getItems().stream()
+                .map(i -> {
+                    Product product = i.getProduct();
+
+                    // Resolve category name if the product has a category assigned
+                    String categoryName = (product.getCategory() != null)
+                            ? product.getCategory().getName()
+                            : null;
+
+                    return new OrderDetailItemDTO(
+                            product.getId(),
+                            product.getName(),
+                            product.getImageUrl(),
+                            categoryName,
+                            i.getQuantity(),
+                            i.getPrice(),
+                            i.getPrice() * i.getQuantity()
+                    );
+                }).toList();
+
+        return new OrderDetailDTO(
+                order.getId(),
+                order.getStatus().name(),
+                order.getPaymentStatus().name(),
+                order.getTotal(),
+                order.getCreatedAt(),
+                order.getUpdatedAt(),
+                order.getName(),
+                order.getEmail(),
+                order.getPhoneNo(),
+                order.getAddress(),
+                items,
+                items.size(),
+                order.getTotal()
         );
     }
 

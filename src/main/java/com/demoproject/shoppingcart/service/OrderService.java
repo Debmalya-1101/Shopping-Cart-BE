@@ -1,6 +1,7 @@
 package com.demoproject.shoppingcart.service;
 
 import com.demoproject.shoppingcart.dto.CheckoutRequestDTO;
+import com.demoproject.shoppingcart.dto.OrderDetailDTO;
 import com.demoproject.shoppingcart.dto.OrderResponseDTO;
 
 import java.util.List;
@@ -11,5 +12,5 @@ public interface OrderService {
 
     List<OrderResponseDTO> getMyOrders();
 
-    OrderResponseDTO getOrderById(Long orderId);
+    OrderDetailDTO getOrderById(Long orderId);
 }
