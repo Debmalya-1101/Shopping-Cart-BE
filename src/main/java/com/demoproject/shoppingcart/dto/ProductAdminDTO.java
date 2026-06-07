@@ -16,9 +16,11 @@ public class ProductAdminDTO {
     private String name;
     private String description;
     private Long price;
+    private Integer stock;
     private Boolean active;
     private String brand;
     private Long categoryId;
+    private Double rating;
     private List<AdminAttributeDTO> attributes;
     private List<String> imageUrls;
 }

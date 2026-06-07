@@ -6,6 +6,7 @@ import lombok.Data;
 public class PaymentConfirmRequestDTO {
     private Long orderId;
     private String paymentToken;
+    private String paymentReferenceId;
     private boolean success;
 }
 

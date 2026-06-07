@@ -45,6 +45,11 @@ public class Order {
 	@Enumerated(EnumType.STRING)
 	private PaymentStatus paymentStatus = PaymentStatus.INITIATED;
 
+	// Payment improvements
+	private String paymentReferenceId; // Unique reference ID from payment gateway
+	private LocalDateTime paymentInitiatedAt; // When payment was initiated
+	private LocalDateTime paymentCompletedAt; // When payment was completed
+	private Integer retryCount = 0; // Number of retry attempts for payment
 
 	public void addItem(OrderItem item) {
 		items.add(item);
@@ -57,3 +62,5 @@ public class Order {
 	@LastModifiedDate
 	private LocalDateTime updatedAt;
 }
+
+

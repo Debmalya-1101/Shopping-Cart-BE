@@ -11,6 +11,9 @@ import jakarta.transaction.Transactional;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.util.UUID;
+
 @Service
 @Transactional
 public class PaymentServiceImpl implements PaymentService {
@@ -48,18 +51,30 @@ public class PaymentServiceImpl implements PaymentService {
             throw new RuntimeException("Unauthorized");
         }
 
+        // Prevent duplicate payment if already successful
         if (order.getPaymentStatus() == PaymentStatus.SUCCESS) {
-            throw new RuntimeException("Payment already completed");
+            throw new RuntimeException("Payment already completed for this order");
         }
+
+        // Generate unique payment reference ID
+        String paymentReferenceId = "REF_" + UUID.randomUUID().toString().substring(0, 12).toUpperCase();
 
         // Mock token (like Razorpay orderId)
         String token = "PAY_" + System.currentTimeMillis();
+
+        // Set payment initiation details
+        order.setPaymentReferenceId(paymentReferenceId);
+        order.setPaymentInitiatedAt(LocalDateTime.now());
+
+        orderRepository.save(order);
 
         return new PaymentInitiateResponseDTO(
                 order.getId(),
                 order.getTotal(),
                 "INR",
-                token
+                token,
+                paymentReferenceId,
+                order.getPaymentInitiatedAt()
         );
     }
 
@@ -75,10 +90,21 @@ public class PaymentServiceImpl implements PaymentService {
             throw new RuntimeException("Unauthorized");
         }
 
+        // Prevent duplicate payment confirmation
+        if (order.getPaymentStatus() == PaymentStatus.SUCCESS) {
+            throw new RuntimeException("Payment already completed. Duplicate payment attempt prevented.");
+        }
+
         if (!request.isSuccess()) {
+            // Handle failed payment
             order.setPaymentStatus(PaymentStatus.FAILED);
+            order.setRetryCount(order.getRetryCount() + 1);
             orderRepository.save(order);
-            return "Payment failed";
+
+            // Kafka Event: PaymentFailedEvent
+            // paymentEventProducer.sendPaymentFailedEvent(order);
+
+            return "Payment failed. You can retry payment up to 3 times.";
         }
 
         // 🔥 Reduce inventory ONLY after success
@@ -86,6 +112,11 @@ public class PaymentServiceImpl implements PaymentService {
             Product product = item.getProduct();
 
             if (product.getStock() < item.getQuantity()) {
+                // Mark as failed if stock no longer available
+                order.setPaymentStatus(PaymentStatus.FAILED);
+                order.setRetryCount(order.getRetryCount() + 1);
+                orderRepository.save(order);
+
                 throw new RuntimeException(
                         "Stock not available during payment for product: " + product.getName()
                 );
@@ -95,11 +126,16 @@ public class PaymentServiceImpl implements PaymentService {
             productRepository.save(product);
         }
 
+        // Payment successful
         order.setPaymentStatus(PaymentStatus.SUCCESS);
+        order.setPaymentCompletedAt(LocalDateTime.now());
+        order.setRetryCount(0); // Reset retry count on success
         orderRepository.save(order);
 
-        // Kafka later:
+        // Kafka Event: PaymentSuccessEvent
         // paymentEventProducer.sendPaymentSuccessEvent(order);
+        // Kafka Event: OrderPlacedEvent
+        // orderEventProducer.sendOrderPlacedEvent(order);
 
         return "Payment successful";
     }
