@@ -131,11 +131,12 @@ Supported admin product list query params:
 
 ### Admin Scraper
 
-Provides capability to scrape and seed products directly from Amazon India (amazon.in) using one or multiple ASINs.
+Provides capability to scrape and seed products directly from Amazon India (amazon.in) or Flipkart India (flipkart.com) using ASINs/FSNs.
 
 | Method | Path | Auth | Request | Response |
 |---|---|---|---|---|
 | POST | `/api/admin/scraper/amazon` | Admin Bearer | `AmazonScrapeRequest` | `List<AmazonScrapeResultDTO>` |
+| POST | `/api/admin/scraper/flipkart` | Admin Bearer | `FlipkartScrapeRequest` | `List<FlipkartScrapeResultDTO>` |
 
 ### Admin Orders
 
@@ -362,6 +363,25 @@ For `CreateProductRequest`, `active` defaults to `true` if not provided.
 
 > [!NOTE]
 > When multiple ASINs are supplied, each scrape task will run sequentially with a **5-second gap** in between to simulate human-like behavior.
+
+### `FlipkartScrapeRequest`
+
+```json
+{
+  "fsns": ["MOBGTAGMG5GB3BD3"],
+  "categoryName": "Smartphones",
+  "simulatedReviews": 3,
+  "simulatedOrders": 5
+}
+```
+
+* `fsns` (List<String>, required): A list of Flipkart Serial Numbers (FSNs / PIDs).
+* `categoryName` (String, required): Category name to assign the scraped product(s) to (automatically created if not found).
+* `simulatedReviews` (int, optional): Number of fake/mock reviews to automatically generate and link for each product (default is `3`).
+* `simulatedOrders` (int, optional): Number of fake/mock orders to automatically generate and link for each product (default is `5`).
+
+> [!NOTE]
+> Like ASIN scraping, multiple FSNs are processed sequentially with a **5-second delay** in between.
 
 ## Response DTOs
 
@@ -743,6 +763,29 @@ The `attributes` array includes `keyName` so the frontend edit form can display 
 }
 ```
 
+### `FlipkartScrapeResultDTO`
+
+```json
+{
+  "status": "SUCCESS",
+  "fsn": "MOBGTAGMG5GB3BD3",
+  "message": "Product successfully scraped from Flipkart India and saved to database.",
+  "productId": 42,
+  "productName": "SAMSUNG Galaxy S24",
+  "fullProductName": "SAMSUNG Galaxy S24 5G (Amber Yellow, 256 GB)  (8 GB RAM)",
+  "priceInr": 79999,
+  "category": "Smartphones",
+  "mainImageUrl": "https://rukminim2.flixcart.com/image/...",
+  "imagesInserted": 5,
+  "attributesInserted": 10,
+  "reviewsSimulated": 3,
+  "ordersSimulated": 5,
+  "galleryImageUrls": [
+    "https://rukminim2.flixcart.com/image/..."
+  ]
+}
+```
+
 ## Validation Rules
 
 ### Bean validation actually enforced with `@Valid`
@@ -771,6 +814,9 @@ The `attributes` array includes `keyName` so the frontend edit form can display 
   - `orderId`: required, positive
 - `AmazonScrapeRequest`
   - `asins`: required, list cannot be empty
+  - `categoryName`: required
+- `FlipkartScrapeRequest`
+  - `fsns`: required, list cannot be empty
   - `categoryName`: required
 
 ### Important gaps
