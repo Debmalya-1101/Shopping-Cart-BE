@@ -65,6 +65,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         // Use active from request; default to true if not provided
         product.setActive(request.getActive() != null ? request.getActive() : true);
         product.setRating(0.0);
+        product.setRatingCount(0L);
 
         // Add attributes
         if (request.getAttributes() != null && !request.getAttributes().isEmpty()) {

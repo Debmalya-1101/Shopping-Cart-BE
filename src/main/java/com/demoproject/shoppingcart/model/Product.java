@@ -28,12 +28,21 @@ public class Product {
 	@NotBlank
 	private String name;
 
+	/**
+	 * Full Amazon product title, e.g.:
+	 * "Samsung Galaxy M07 Mobile (Black, 4GB RAM, 64GB Storage) | MediaTek Helio G99 | ..."
+	 * Stored separately so the short display name stays clean.
+	 */
+	@Column(name = "full_name", columnDefinition = "TEXT")
+	private String fullName;
+
 	@NotNull
 	@Positive
 	private Long price;
 
 	private String imageUrl;
 
+	@Column(columnDefinition = "TEXT")
 	private String description;
 
 	private String brand;
@@ -43,6 +52,9 @@ public class Product {
 	private Boolean active = true;
 
 	private Double rating;
+
+	@Column(name = "rating_count")
+	private Long ratingCount = 0L;
 
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "category_id")

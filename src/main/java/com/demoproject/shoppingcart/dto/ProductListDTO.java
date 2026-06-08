@@ -15,6 +15,7 @@ public class ProductListDTO {
     private Long price;
     private String imageUrl; // Thumbnail
     private Double rating;
+    private Long ratingCount;
     private Boolean active;
     private String brand;
     private String categoryName;

@@ -14,10 +14,12 @@ import java.util.List;
 public class ProductDetailDTO {
     private Long id;
     private String name;
+    private String fullName;
     private String description;
     private Long price;
     private String imageUrl;
     private Double rating;
+    private Long ratingCount;
     private Boolean active;
     private String brand;
     private String categoryName;

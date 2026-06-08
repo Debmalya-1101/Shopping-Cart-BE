@@ -101,6 +101,13 @@
 			<scope>runtime</scope>
 		</dependency>
 
+		<!-- Playwright - Headless browser for Amazon scraping -->
+		<dependency>
+			<groupId>com.microsoft.playwright</groupId>
+			<artifactId>playwright</artifactId>
+			<version>1.40.0</version>
+		</dependency>
+
 		<!-- Devtools (optional) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

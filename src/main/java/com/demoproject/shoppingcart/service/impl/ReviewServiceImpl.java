@@ -158,6 +158,7 @@ public class ReviewServiceImpl implements ReviewService {
 
         if (allReviews.isEmpty()) {
             product.setRating(0.0);
+            product.setRatingCount(0L);
         } else {
             double avgRating = allReviews.getContent()
                     .stream()
@@ -165,6 +166,7 @@ public class ReviewServiceImpl implements ReviewService {
                     .average()
                     .orElse(0.0);
             product.setRating(Math.round(avgRating * 10.0) / 10.0); // Round to 1 decimal place
+            product.setRatingCount((long) allReviews.getContent().size());
         }
 
         productRepository.save(product);

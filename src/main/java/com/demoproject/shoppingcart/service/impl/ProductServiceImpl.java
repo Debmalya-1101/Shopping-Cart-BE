@@ -92,12 +92,15 @@ public class ProductServiceImpl implements ProductService {
                 ? product.getCategory().getName()
                 : null;
 
+        Long ratingCount = product.getRatingCount() != null ? product.getRatingCount() : 0L;
+
         return new ProductListDTO(
                 product.getId(),
                 product.getName(),
                 product.getPrice(),
                 product.getImageUrl(),
                 product.getRating(),
+                ratingCount,
                 product.getActive(),
                 product.getBrand(),
                 categoryName
@@ -119,13 +122,17 @@ public class ProductServiceImpl implements ProductService {
                 .map(this::toAttributeDTO)
                 .collect(Collectors.toList());
 
+        Long ratingCount = product.getRatingCount() != null ? product.getRatingCount() : 0L;
+
         return new ProductDetailDTO(
                 product.getId(),
                 product.getName(),
+                product.getFullName(),
                 product.getDescription(),
                 product.getPrice(),
                 product.getImageUrl(),
                 product.getRating(),
+                ratingCount,
                 product.getActive(),
                 product.getBrand(),
                 categoryName,

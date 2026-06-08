@@ -129,6 +129,14 @@ Supported admin product list query params:
 - `page` default `0`
 - `size` default `10`
 
+### Admin Scraper
+
+Provides capability to scrape and seed products directly from Amazon India (amazon.in) using one or multiple ASINs.
+
+| Method | Path | Auth | Request | Response |
+|---|---|---|---|---|
+| POST | `/api/admin/scraper/amazon` | Admin Bearer | `AmazonScrapeRequest` | `List<AmazonScrapeResultDTO>` |
+
 ### Admin Orders
 
 | Method | Path | Auth | Request | Response |
@@ -336,6 +344,25 @@ For `CreateProductRequest`, `active` defaults to `true` if not provided.
 }
 ```
 
+### `AmazonScrapeRequest`
+
+```json
+{
+  "asins": ["B09G93C5DK", "B0BZM6985C"],
+  "categoryName": "Smartphones",
+  "simulatedReviews": 3,
+  "simulatedOrders": 5
+}
+```
+
+* `asins` (List<String>, required): A list of 10-character Amazon Standard Identification Numbers (ASINs).
+* `categoryName` (String, required): Category name to assign the scraped product(s) to (automatically created if not found).
+* `simulatedReviews` (int, optional): Number of fake/mock reviews to automatically generate and link for each product (default is `3`).
+* `simulatedOrders` (int, optional): Number of fake/mock orders to automatically generate and link for each product (default is `5`).
+
+> [!NOTE]
+> When multiple ASINs are supplied, each scrape task will run sequentially with a **5-second gap** in between to simulate human-like behavior.
+
 ## Response DTOs
 
 ### `AuthResponse`
@@ -421,6 +448,7 @@ Returned by all `/api/admin/attribute-keys` endpoints.
   "price": 1000,
   "imageUrl": "string",
   "rating": 4.5,
+  "ratingCount": 0,
   "active": true,
   "brand": "string",
   "categoryName": "string"
@@ -433,10 +461,12 @@ Returned by all `/api/admin/attribute-keys` endpoints.
 {
   "id": 1,
   "name": "string",
+  "fullName": "string",
   "description": "string",
   "price": 1000,
   "imageUrl": "string",
   "rating": 4.5,
+  "ratingCount": 0,
   "active": true,
   "brand": "string",
   "categoryName": "string",
@@ -690,6 +720,29 @@ The `attributes` array includes `keyName` so the frontend edit form can display 
 }
 ```
 
+### `AmazonScrapeResultDTO`
+
+```json
+{
+  "status": "SUCCESS",
+  "asin": "B09G93C5DK",
+  "message": "Product successfully scraped from Amazon India and saved to database.",
+  "productId": 42,
+  "productName": "Apple iPhone 13",
+  "fullProductName": "Apple iPhone 13 (128GB) - Midnight",
+  "priceInr": 52999,
+  "category": "Smartphones",
+  "mainImageUrl": "https://m.media-amazon.com/images/I/...",
+  "imagesInserted": 6,
+  "attributesInserted": 12,
+  "reviewsSimulated": 3,
+  "ordersSimulated": 5,
+  "galleryImageUrls": [
+    "https://m.media-amazon.com/images/I/..."
+  ]
+}
+```
+
 ## Validation Rules
 
 ### Bean validation actually enforced with `@Valid`
@@ -716,6 +769,9 @@ The `attributes` array includes `keyName` so the frontend edit form can display 
   - `active`: required
 - `RetryPaymentRequest`
   - `orderId`: required, positive
+- `AmazonScrapeRequest`
+  - `asins`: required, list cannot be empty
+  - `categoryName`: required
 
 ### Important gaps
 
