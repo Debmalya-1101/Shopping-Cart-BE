@@ -55,6 +55,11 @@ public class AppUser {
 			cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<WishlistItem> wishlist;
 
+	@JsonIgnore
+	@OneToMany(mappedBy = "user", fetch = FetchType.LAZY,
+			cascade = CascadeType.ALL, orphanRemoval = true)
+	private List<Address> addresses;
+
 	// ============================================
 	// Audit Information (Who + When)
 	// ============================================

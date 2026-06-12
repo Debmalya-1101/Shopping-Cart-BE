@@ -81,6 +81,16 @@ Supported product list query params:
 | DELETE | `/api/wishlist/item/{itemId}` | Bearer | Path param | `WishlistDTO` |
 | POST | `/api/wishlist/toggle/{productId}` | Bearer | Path param | `WishlistDTO` |
 
+### Addresses
+
+| Method | Path | Auth | Request | Response |
+|---|---|---|---|---|
+| GET | `/api/addresses` | Bearer | None | `List<AddressDTO>` |
+| POST | `/api/addresses` | Bearer | `AddressDTO` | `AddressDTO` |
+| PUT | `/api/addresses/{id}` | Bearer | `AddressDTO` | `AddressDTO` |
+| DELETE | `/api/addresses/{id}` | Bearer | Path param | `String` |
+| PUT | `/api/addresses/{id}/default` | Bearer | Path param | `AddressDTO` |
+
 ### Orders
 
 | Method | Path | Auth | Request | Response |
@@ -227,6 +237,22 @@ Used to build the attributes section of the product add/edit form.
 }
 ```
 
+### `AddressDTO`
+
+```json
+{
+  "id": 1,
+  "contactName": "string",
+  "mobileNumber": "9876543210",
+  "addressLine": "string",
+  "city": "string",
+  "state": "string",
+  "postalCode": "700001",
+  "country": "India",
+  "isDefault": true
+}
+```
+
 ### `CheckoutRequestDTO`
 
 ```json
@@ -234,9 +260,13 @@ Used to build the attributes section of the product add/edit form.
   "name": "string",
   "phoneNo": 9876543210,
   "email": "string",
-  "address": "string"
+  "address": "string",
+  "addressId": 1
 }
 ```
+
+> [!NOTE]
+> If `addressId` is provided, it takes precedence. If no `addressId` is provided, the backend falls back to the user's default saved address, and finally to the manual fields.
 
 ### `PaymentConfirmRequestDTO`
 
@@ -818,6 +848,11 @@ The `attributes` array includes `keyName` so the frontend edit form can display 
 - `FlipkartScrapeRequest`
   - `fsns`: required, list cannot be empty
   - `categoryName`: required
+- `AddressDTO`
+  - `contactName`: required
+  - `mobileNumber`: required, exactly 10 digits
+  - `addressLine`: required
+  - `postalCode`: required, exactly 6 digits (Indian PIN code format)
 
 ### Important gaps
 

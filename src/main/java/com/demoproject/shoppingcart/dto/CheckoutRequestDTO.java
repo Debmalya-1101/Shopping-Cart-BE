@@ -10,5 +10,6 @@ public class CheckoutRequestDTO {
     private Long phoneNo;
     private String email;
     private String address;
+    private Long addressId;
 }
 

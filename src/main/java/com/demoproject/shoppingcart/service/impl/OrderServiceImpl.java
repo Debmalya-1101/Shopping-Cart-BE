@@ -6,6 +6,7 @@ import com.demoproject.shoppingcart.dto.OrderDetailItemDTO;
 import com.demoproject.shoppingcart.dto.OrderItemDTO;
 import com.demoproject.shoppingcart.dto.OrderResponseDTO;
 import com.demoproject.shoppingcart.model.*;
+import com.demoproject.shoppingcart.repository.AddressRepository;
 import com.demoproject.shoppingcart.repository.CartItemRepository;
 import com.demoproject.shoppingcart.repository.CartRepository;
 import com.demoproject.shoppingcart.repository.OrderRepository;
@@ -23,12 +24,14 @@ public class OrderServiceImpl implements OrderService {
     private final CartRepository cartRepository;
     private final OrderRepository orderRepository;
     private final CartItemRepository cartItemRepository;
+    private final AddressRepository addressRepository;
 
-    public OrderServiceImpl(UserRepository userRepository, CartRepository cartRepository, OrderRepository orderRepository, CartItemRepository cartItemRepository) {
+    public OrderServiceImpl(UserRepository userRepository, CartRepository cartRepository, OrderRepository orderRepository, CartItemRepository cartItemRepository, AddressRepository addressRepository) {
         this.userRepository = userRepository;
         this.cartRepository = cartRepository;
         this.orderRepository = orderRepository;
         this.cartItemRepository = cartItemRepository;
+        this.addressRepository = addressRepository;
     }
 
     @Override
@@ -57,11 +60,46 @@ public class OrderServiceImpl implements OrderService {
 
         Order order = new Order();
         order.setUser(user);
-        order.setName(request.getName());
-        order.setPhoneNo(request.getPhoneNo());
-        order.setEmail(request.getEmail());
-        order.setAddress(request.getAddress());
         order.setStatus(OrderStatus.PLACED);
+
+        // Address fallback resolution logic
+        String shippingName;
+        Long shippingPhone;
+        String shippingEmail = request.getEmail() != null ? request.getEmail() : user.getEmailId();
+        String shippingAddressStr;
+
+        if (request.getAddressId() != null) {
+            // 1. User selected a specific saved address
+            Address address = addressRepository.findByIdAndUser(request.getAddressId(), user)
+                    .orElseThrow(() -> new RuntimeException("Saved address not found or unauthorized"));
+            shippingName = address.getContactName();
+            shippingPhone = parsePhone(address.getMobileNumber());
+            shippingAddressStr = formatAddress(address);
+        } else {
+            // 2. Try default address fallback
+            java.util.Optional<Address> defaultAddressOpt = addressRepository.findByUserAndIsDefault(user, true);
+            if (defaultAddressOpt.isPresent()) {
+                Address address = defaultAddressOpt.get();
+                shippingName = address.getContactName();
+                shippingPhone = parsePhone(address.getMobileNumber());
+                shippingAddressStr = formatAddress(address);
+            } else {
+                // 3. Fallback to manual checkout form details
+                if (request.getName() == null || request.getName().trim().isEmpty() ||
+                        request.getPhoneNo() == null ||
+                        request.getAddress() == null || request.getAddress().trim().isEmpty()) {
+                    throw new RuntimeException("Shipping address information is missing. Please provide address details or select a saved address.");
+                }
+                shippingName = request.getName();
+                shippingPhone = request.getPhoneNo();
+                shippingAddressStr = request.getAddress();
+            }
+        }
+
+        order.setName(shippingName);
+        order.setPhoneNo(shippingPhone);
+        order.setEmail(shippingEmail);
+        order.setAddress(shippingAddressStr);
 
         List<OrderItem> orderItems = cart.getItems().stream().map(cartItem -> {
             OrderItem oi = new OrderItem();
@@ -189,6 +227,33 @@ public class OrderServiceImpl implements OrderService {
                 items.size(),
                 order.getTotal()
         );
+    }
+
+    private Long parsePhone(String mobileNumber) {
+        if (mobileNumber == null) return 0L;
+        try {
+            return Long.parseLong(mobileNumber.replaceAll("\\D", ""));
+        } catch (NumberFormatException e) {
+            return 0L;
+        }
+    }
+
+    private String formatAddress(Address address) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(address.getAddressLine());
+        if (address.getCity() != null && !address.getCity().trim().isEmpty()) {
+            sb.append(", ").append(address.getCity());
+        }
+        if (address.getState() != null && !address.getState().trim().isEmpty()) {
+            sb.append(", ").append(address.getState());
+        }
+        if (address.getPostalCode() != null && !address.getPostalCode().trim().isEmpty()) {
+            sb.append(" - ").append(address.getPostalCode());
+        }
+        if (address.getCountry() != null && !address.getCountry().trim().isEmpty()) {
+            sb.append(", ").append(address.getCountry());
+        }
+        return sb.toString();
     }
 
 }
