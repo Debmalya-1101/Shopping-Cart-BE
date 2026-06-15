@@ -11,6 +11,7 @@ import java.util.List;
 @AllArgsConstructor
 @Entity
 @Table(name = "categories")
+@org.hibernate.annotations.BatchSize(size = 50)
 public class Category {
 
     @Id

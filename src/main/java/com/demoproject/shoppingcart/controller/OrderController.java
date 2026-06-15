@@ -27,8 +27,10 @@ public class OrderController {
     }
 
     @GetMapping
-    public ResponseEntity<List<OrderResponseDTO>> getMyOrders() {
-        return ResponseEntity.ok(orderService.getMyOrders());
+    public ResponseEntity<com.demoproject.shoppingcart.dto.PageResponse<OrderResponseDTO>> getMyOrders(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(orderService.getMyOrders(page, size));
     }
 
     /**

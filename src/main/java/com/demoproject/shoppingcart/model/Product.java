@@ -19,6 +19,7 @@ import java.util.List;
 @Entity
 @EntityListeners(AuditingEntityListener.class)
 @Table(name = "products")
+@org.hibernate.annotations.BatchSize(size = 100)
 public class Product {
 
 	@Id
@@ -61,11 +62,13 @@ public class Product {
 	private Category category;
 
 	@JsonIgnore
+	@org.hibernate.annotations.BatchSize(size = 50)
 	@OneToMany(mappedBy = "product", fetch = FetchType.LAZY,
 			cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<ProductAttribute> attributes = new ArrayList<>();
 
 	@JsonIgnore
+	@org.hibernate.annotations.BatchSize(size = 50)
 	@OneToMany(mappedBy = "product", fetch = FetchType.LAZY,
 			cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<ProductImage> images = new ArrayList<>();

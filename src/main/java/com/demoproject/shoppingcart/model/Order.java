@@ -28,6 +28,7 @@ public class Order {
 	@JoinColumn(name = "user_id")
 	private AppUser user;
 
+	@org.hibernate.annotations.BatchSize(size = 100)
 	@OneToMany(mappedBy = "order", fetch = FetchType.LAZY,
 			cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<OrderItem> items = new ArrayList<>();

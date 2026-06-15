@@ -15,6 +15,7 @@ import java.util.List;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findByUserOrderByCreatedAtDesc(AppUser user);
+    Page<Order> findByUserOrderByCreatedAtDesc(AppUser user, Pageable pageable);
 
     Page<Order> findAll(Pageable pageable);
 

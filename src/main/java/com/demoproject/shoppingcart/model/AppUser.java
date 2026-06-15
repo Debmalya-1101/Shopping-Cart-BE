@@ -17,6 +17,7 @@ import java.util.List;
 @Entity
 @EntityListeners(AuditingEntityListener.class)
 @Table(name = "users")
+@org.hibernate.annotations.BatchSize(size = 100)
 public class AppUser {
 
 	@Id

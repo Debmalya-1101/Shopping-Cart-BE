@@ -146,13 +146,25 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public List<OrderResponseDTO> getMyOrders() {
+    public com.demoproject.shoppingcart.dto.PageResponse<OrderResponseDTO> getMyOrders(int page, int size) {
         AppUser user = getLoggedInUser();
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
 
-        return orderRepository.findByUserOrderByCreatedAtDesc(user)
+        org.springframework.data.domain.Page<Order> orderPage = orderRepository.findByUserOrderByCreatedAtDesc(user, pageable);
+
+        List<OrderResponseDTO> dtoList = orderPage.getContent()
                 .stream()
                 .map(this::convertToOrderDTO)
                 .toList();
+
+        return new com.demoproject.shoppingcart.dto.PageResponse<>(
+                dtoList,
+                orderPage.getNumber(),
+                orderPage.getSize(),
+                orderPage.getTotalElements(),
+                orderPage.getTotalPages(),
+                orderPage.isLast()
+        );
     }
 
     @Override
