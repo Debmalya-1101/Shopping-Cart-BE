@@ -31,4 +31,13 @@ public class PageResponse<T> {
         this.totalPages = totalPages;
         this.last = last;
     }
+
+    public PageResponse(org.springframework.data.domain.Page<T> page) {
+        this.content = page.getContent();
+        this.pageNumber = page.getNumber();
+        this.pageSize = page.getSize();
+        this.totalElements = page.getTotalElements();
+        this.totalPages = page.getTotalPages();
+        this.last = page.isLast();
+    }
 }

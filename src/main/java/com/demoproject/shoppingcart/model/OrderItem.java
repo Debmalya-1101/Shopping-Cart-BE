@@ -23,6 +23,10 @@ public class OrderItem {
     @JoinColumn(name = "product_id")
     private Product product;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status")
+    private OrderItemStatus status;
+
     @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id")

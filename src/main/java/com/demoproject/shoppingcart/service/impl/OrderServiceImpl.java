@@ -5,6 +5,7 @@ import com.demoproject.shoppingcart.dto.OrderDetailDTO;
 import com.demoproject.shoppingcart.dto.OrderDetailItemDTO;
 import com.demoproject.shoppingcart.dto.OrderItemDTO;
 import com.demoproject.shoppingcart.dto.OrderResponseDTO;
+import com.demoproject.shoppingcart.dto.OrderItemReturnRequestDTO;
 import com.demoproject.shoppingcart.model.*;
 import com.demoproject.shoppingcart.repository.AddressRepository;
 import com.demoproject.shoppingcart.repository.CartItemRepository;
@@ -18,6 +19,10 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
+
 @Service
 public class OrderServiceImpl implements OrderService {
     private final UserRepository userRepository;
@@ -25,17 +30,20 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final CartItemRepository cartItemRepository;
     private final AddressRepository addressRepository;
+    private final com.demoproject.shoppingcart.service.InventoryService inventoryService;
 
-    public OrderServiceImpl(UserRepository userRepository, CartRepository cartRepository, OrderRepository orderRepository, CartItemRepository cartItemRepository, AddressRepository addressRepository) {
+    public OrderServiceImpl(UserRepository userRepository, CartRepository cartRepository, OrderRepository orderRepository, CartItemRepository cartItemRepository, AddressRepository addressRepository, com.demoproject.shoppingcart.service.InventoryService inventoryService) {
         this.userRepository = userRepository;
         this.cartRepository = cartRepository;
         this.orderRepository = orderRepository;
         this.cartItemRepository = cartItemRepository;
         this.addressRepository = addressRepository;
+        this.inventoryService = inventoryService;
     }
 
     @Override
     @Transactional
+    @Retryable(retryFor = ObjectOptimisticLockingFailureException.class, maxAttempts = 3, backoff = @Backoff(delay = 100))
     public OrderResponseDTO checkout(CheckoutRequestDTO request) {
 
         AppUser user = getLoggedInUser();
@@ -48,13 +56,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         for (CartItem cartItem : cart.getItems()) {
-            Product product = cartItem.getProduct();
-
-            if (product.getStock() == null || product.getStock() < cartItem.getQuantity()) {
-                throw new RuntimeException(
-                        "Insufficient stock for product: " + product.getName()
-                );
-            }
+            // Replaced manual stock check with InventoryService reservation later in the transaction
         }
 
 
@@ -119,6 +121,17 @@ public class OrderServiceImpl implements OrderService {
         order.setTotal(total);
 
         Order savedOrder = orderRepository.save(order);
+
+        // Reserve stock using InventoryService
+        for (OrderItem item : savedOrder.getItems()) {
+            inventoryService.reserveStock(
+                    item.getProduct().getId(),
+                    item.getQuantity().intValue(),
+                    "ORDER",
+                    savedOrder.getId().toString(),
+                    "User checkout"
+            );
+        }
 
         // Clear cart
         cartItemRepository.deleteAll(cart.getItems());
@@ -254,6 +267,74 @@ public class OrderServiceImpl implements OrderService {
             sb.append(", ").append(address.getCountry());
         }
         return sb.toString();
+    }
+
+    @Override
+    @Transactional
+    @Retryable(retryFor = ObjectOptimisticLockingFailureException.class, maxAttempts = 3, backoff = @Backoff(delay = 100))
+    public OrderResponseDTO cancelOrder(Long orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found with id: " + orderId));
+
+        if (order.getStatus() != OrderStatus.PLACED) {
+            throw new IllegalStateException("Order cannot be cancelled. Current status: " + order.getStatus());
+        }
+
+        order.setStatus(OrderStatus.CANCELLED);
+        orderRepository.save(order);
+
+        for (OrderItem item : order.getItems()) {
+            inventoryService.cancelOrderStock(
+                    item.getProduct().getId(),
+                    item.getQuantity().intValue(),
+                    "ORDER_CANCEL",
+                    order.getId().toString(),
+                    "Order cancelled by user/admin"
+            );
+        }
+
+        return convertToOrderDTO(order);
+    }
+
+    @Override
+    @Transactional
+    @Retryable(retryFor = ObjectOptimisticLockingFailureException.class, maxAttempts = 3, backoff = @Backoff(delay = 100))
+    public OrderResponseDTO processReturn(Long orderId, OrderItemReturnRequestDTO request) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found with id: " + orderId));
+
+        if (order.getStatus() != OrderStatus.DELIVERED) {
+            throw new IllegalStateException("Order must be DELIVERED to process returns.");
+        }
+
+        for (OrderItemReturnRequestDTO.ReturnItemDTO returnItem : request.getItems()) {
+            OrderItem orderItem = order.getItems().stream()
+                    .filter(item -> item.getId().equals(returnItem.getOrderItemId()))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("OrderItem not found: " + returnItem.getOrderItemId()));
+
+            if (orderItem.getStatus() == OrderItemStatus.RETURNED) {
+                throw new IllegalStateException("OrderItem is already RETURNED: " + orderItem.getId());
+            }
+
+            if (returnItem.getQuantity() > orderItem.getQuantity()) {
+                throw new IllegalArgumentException("Return quantity cannot exceed purchased quantity for item: " + orderItem.getId());
+            }
+
+            orderItem.setStatus(OrderItemStatus.RETURNED);
+            
+            inventoryService.returnStock(
+                    orderItem.getProduct().getId(),
+                    returnItem.getQuantity(),
+                    returnItem.getCondition(),
+                    "ORDER_RETURN",
+                    order.getId().toString(),
+                    request.getNotes() != null ? request.getNotes() : "Item returned"
+            );
+        }
+
+        orderRepository.save(order);
+        return convertToOrderDTO(order);
     }
 
 }

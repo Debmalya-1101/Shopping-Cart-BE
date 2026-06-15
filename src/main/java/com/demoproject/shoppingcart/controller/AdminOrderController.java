@@ -4,6 +4,10 @@ import com.demoproject.shoppingcart.dto.AdminOrderResponseDTO;
 import com.demoproject.shoppingcart.dto.UpdateOrderStatusRequest;
 import com.demoproject.shoppingcart.model.OrderStatus;
 import com.demoproject.shoppingcart.service.AdminOrderService;
+import com.demoproject.shoppingcart.service.OrderService;
+import com.demoproject.shoppingcart.dto.OrderResponseDTO;
+import com.demoproject.shoppingcart.dto.OrderItemReturnRequestDTO;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -19,9 +23,11 @@ import java.util.List;
 public class AdminOrderController {
 
     private final AdminOrderService adminOrderService;
+    private final OrderService orderService;
 
-    public AdminOrderController(AdminOrderService adminOrderService) {
+    public AdminOrderController(AdminOrderService adminOrderService, OrderService orderService) {
         this.adminOrderService = adminOrderService;
+        this.orderService = orderService;
     }
 
     @GetMapping
@@ -52,6 +58,13 @@ public class AdminOrderController {
         return ResponseEntity.ok(
                 adminOrderService.updateOrderStatus(orderId, request.getStatus())
         );
+    }
+
+    @PostMapping("/{orderId}/items/return")
+    public ResponseEntity<OrderResponseDTO> processReturn(
+            @PathVariable Long orderId,
+            @Valid @RequestBody OrderItemReturnRequestDTO request) {
+        return ResponseEntity.ok(orderService.processReturn(orderId, request));
     }
 }
 

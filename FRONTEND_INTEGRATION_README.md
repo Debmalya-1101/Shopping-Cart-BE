@@ -96,6 +96,7 @@ Supported product list query params:
 | Method | Path | Auth | Request | Response |
 |---|---|---|---|---|
 | POST | `/api/orders/checkout` | Bearer | `CheckoutRequestDTO` | `OrderResponseDTO` |
+| POST | `/api/orders/{orderId}/cancel` | Bearer | None | `OrderResponseDTO` |
 | GET | `/api/orders` | Bearer | None | `List<OrderResponseDTO>` |
 | GET | `/api/orders/{orderId}` | Bearer | Path param | `OrderDetailDTO` |
 
@@ -107,6 +108,9 @@ Supported product list query params:
 | POST | `/api/payments/confirm` | Bearer | `PaymentConfirmRequestDTO` | `String` |
 | POST | `/api/payments/retry` | Bearer | `RetryPaymentRequest` | `PaymentInitiateResponseDTO` |
 
+> [!WARNING]
+> `POST /api/payments/retry` enforces a maximum limit of 3 retries per order. If the limit is exceeded, the endpoint will return an HTTP 500/400 error with the message "Maximum payment retries exceeded. Please create a new order."
+
 ### Reviews
 
 | Method | Path | Auth | Request | Response |
@@ -115,6 +119,33 @@ Supported product list query params:
 | PUT | `/api/reviews/{id}` | Bearer | `UpdateReviewRequest` | `ReviewDTO` |
 | DELETE | `/api/reviews/{id}` | Bearer | Path param | `String` |
 | GET | `/api/reviews/product/{productId}?page=0&size=10` | Bearer | Path + query | `PageResponse<ReviewDTO>` |
+
+### Admin Inventory
+
+| Method | Path | Auth | Request | Response |
+|---|---|---|---|---|
+| GET | `/api/admin/inventory` | Admin Bearer | Query params | `PageResponse<InventoryResponseDTO>` |
+| GET | `/api/admin/inventory/product/{productId}` | Admin Bearer | Path param | `InventoryResponseDTO` |
+| GET | `/api/admin/inventory/{inventoryId}/transactions` | Admin Bearer | Path + query params | `PageResponse<InventoryTransactionDTO>` |
+| POST | `/api/admin/inventory/product/{productId}/adjust` | Admin Bearer | `InventoryAdjustmentRequest` | `InventoryResponseDTO` |
+| GET | `/api/admin/inventory/analytics` | Admin Bearer | Query params | `InventoryAnalyticsDashboardDTO` |
+
+Supported `/api/admin/inventory` query params:
+- `page`, `size`
+- `productId`
+- `productName`
+- `lowStock` (boolean)
+- `outOfStock` (boolean)
+- `sortBy` default `updatedAt`, supported mapping: `availableQuantity`, `reservedQuantity`, `reorderLevel`, `updatedAt`
+- `order` default `desc`
+
+Supported `/api/admin/inventory/{id}/transactions` query params:
+- `page`, `size`
+- `transactionType` (enum: RESTOCK, RESERVE, RELEASE, CONSUME, ADJUSTMENT)
+- `referenceType`
+- `referenceId`
+- `startDate` (ISO 8601 Date Time String)
+- `endDate` (ISO 8601 Date Time String)
 
 ### Admin Products
 
@@ -339,6 +370,17 @@ For `CreateProductRequest`, `active` defaults to `true` if not provided.
 }
 ```
 
+### `InventoryAdjustmentRequest`
+
+```json
+{
+  "quantityDelta": -5,
+  "referenceType": "MANUAL_ADJUSTMENT",
+  "referenceId": "INCIDENT-992",
+  "notes": "Damaged items"
+}
+```
+
 ### `CreateCategoryRequest`
 
 ```json
@@ -444,6 +486,72 @@ For `CreateProductRequest`, `active` defaults to `true` if not provided.
   "totalElements": 0,
   "totalPages": 0,
   "last": true
+}
+```
+
+### `InventoryResponseDTO`
+
+```json
+{
+  "id": 1,
+  "productId": 50,
+  "productName": "iPhone 15",
+  "availableQuantity": 8,
+  "reservedQuantity": 2,
+  "reorderLevel": 5,
+  "totalQuantity": 10,
+  "version": 3,
+  "updatedAt": "2026-06-13T10:00:00"
+}
+```
+
+### `InventoryTransactionDTO`
+
+```json
+{
+  "id": 101,
+  "transactionType": "RESERVE",
+  "referenceType": "ORDER",
+  "referenceId": "ORD-12345",
+  "quantity": 2,
+  "notes": "User checkout",
+  "createdAt": "2026-06-13T09:30:00"
+}
+```
+
+### `InventoryAnalyticsDashboardDTO`
+
+```json
+{
+  "valuation": {
+    "totalValue": 150000.0,
+    "reservedValue": 5000.0,
+    "damagedValue": 200.0
+  },
+  "lowStockCount": 12,
+  "outOfStockCount": 3,
+  "fastMovingProducts": [
+    {
+      "productId": 50,
+      "productName": "iPhone 15",
+      "unitsConsumed": 45,
+      "netUnitsSold": 42
+    }
+  ],
+  "slowMovingProducts": [
+    {
+      "productId": 12,
+      "productName": "Old Phone Case",
+      "unitsConsumed": 0,
+      "netUnitsSold": 0
+    }
+  ],
+  "transactionSummaries": [
+    {
+      "transactionType": "CONSUME",
+      "totalQuantity": 150
+    }
+  ]
 }
 ```
 

@@ -80,7 +80,9 @@ public class AdminProductController {
     /**
      * Update product stock only
      * PATCH /api/admin/products/{id}/stock
+     * @deprecated Use POST /api/admin/inventory/product/{id}/adjust instead
      */
+    @Deprecated
     @PatchMapping("/{id}/stock")
     public ResponseEntity<String> updateStock(
             @PathVariable Long id,

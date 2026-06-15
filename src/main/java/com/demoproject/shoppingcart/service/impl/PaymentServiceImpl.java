@@ -14,20 +14,26 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
+
 @Service
-@Transactional
 public class PaymentServiceImpl implements PaymentService {
 
     private final OrderRepository orderRepository;
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
+    private final com.demoproject.shoppingcart.service.InventoryService inventoryService;
 
     public PaymentServiceImpl(OrderRepository orderRepository,
                               ProductRepository productRepository,
-                              UserRepository userRepository) {
+                              UserRepository userRepository,
+                              com.demoproject.shoppingcart.service.InventoryService inventoryService) {
         this.orderRepository = orderRepository;
         this.productRepository = productRepository;
         this.userRepository = userRepository;
+        this.inventoryService = inventoryService;
     }
 
     private AppUser getLoggedInUser() {
@@ -41,6 +47,23 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     public PaymentInitiateResponseDTO initiatePayment(Long orderId) {
+
+        // Step 1: Transactional pre-checks
+        Order order = prepareOrderForPayment(orderId);
+
+        // Step 2: External HTTP Call (No DB Tx)
+        // Generate unique payment reference ID
+        String paymentReferenceId = "REF_" + UUID.randomUUID().toString().substring(0, 12).toUpperCase();
+        // Mock token (like Razorpay orderId)
+        String token = "PAY_" + System.currentTimeMillis();
+
+        // Step 3: Transactional save state
+        return savePaymentInitiationState(orderId, paymentReferenceId, token);
+    }
+
+    @Transactional
+    @Retryable(retryFor = ObjectOptimisticLockingFailureException.class, maxAttempts = 3, backoff = @Backoff(delay = 100))
+    protected Order prepareOrderForPayment(Long orderId) {
 
         AppUser user = getLoggedInUser();
 
@@ -56,16 +79,37 @@ public class PaymentServiceImpl implements PaymentService {
             throw new RuntimeException("Payment already completed for this order");
         }
 
-        // Generate unique payment reference ID
-        String paymentReferenceId = "REF_" + UUID.randomUUID().toString().substring(0, 12).toUpperCase();
+        // Block if maximum retries exceeded
+        if (order.getRetryCount() >= 3) {
+            throw new RuntimeException("Maximum payment retries exceeded. Please create a new order.");
+        }
 
-        // Mock token (like Razorpay orderId)
-        String token = "PAY_" + System.currentTimeMillis();
+        // If this is a retry (status FAILED), we must re-reserve the stock before allowing retry
+        if (order.getPaymentStatus() == PaymentStatus.FAILED) {
+            for (OrderItem item : order.getItems()) {
+                inventoryService.reserveStock(
+                        item.getProduct().getId(),
+                        item.getQuantity().intValue(),
+                        "ORDER",
+                        order.getId().toString(),
+                        "Payment retry reservation"
+                );
+            }
+            // Transition back to INITIATED
+            order.setPaymentStatus(PaymentStatus.INITIATED);
+        }
 
-        // Set payment initiation details
+        return orderRepository.save(order);
+    }
+
+    @Transactional
+    @Retryable(retryFor = ObjectOptimisticLockingFailureException.class, maxAttempts = 3, backoff = @Backoff(delay = 100))
+    protected PaymentInitiateResponseDTO savePaymentInitiationState(Long orderId, String paymentReferenceId, String token) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
         order.setPaymentReferenceId(paymentReferenceId);
         order.setPaymentInitiatedAt(LocalDateTime.now());
-
         orderRepository.save(order);
 
         return new PaymentInitiateResponseDTO(
@@ -79,6 +123,8 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     @Override
+    @Transactional
+    @Retryable(retryFor = ObjectOptimisticLockingFailureException.class, maxAttempts = 3, backoff = @Backoff(delay = 100))
     public String confirmPayment(PaymentConfirmRequestDTO request) {
 
         AppUser user = getLoggedInUser();
@@ -90,9 +136,63 @@ public class PaymentServiceImpl implements PaymentService {
             throw new RuntimeException("Unauthorized");
         }
 
-        // Prevent duplicate payment confirmation
-        if (order.getPaymentStatus() == PaymentStatus.SUCCESS) {
-            throw new RuntimeException("Payment already completed. Duplicate payment attempt prevented.");
+        // Safe Idempotency: Silently absorb duplicate webhooks
+        if (order.getPaymentStatus() == PaymentStatus.SUCCESS || 
+            order.getPaymentStatus() == PaymentStatus.SUCCESS_REQUIRES_REFUND || 
+            order.getPaymentStatus() == PaymentStatus.REFUNDED) {
+            if (request.isSuccess()) {
+                return "Payment already completed. Ignored.";
+            }
+        }
+
+        if (order.getPaymentStatus() == PaymentStatus.FAILED) {
+            if (!request.isSuccess()) {
+                return "Payment already failed. Ignored.";
+            }
+            
+            // LATE SUCCESS WEBHOOK RECOVERY
+            // The order was failed (e.g. by 30-min cron), but we just got a late success webhook!
+            try {
+                // Step 1: Attempt to re-reserve stock
+                for (OrderItem item : order.getItems()) {
+                    inventoryService.reserveStock(
+                            item.getProduct().getId(),
+                            item.getQuantity().intValue(),
+                            "ORDER",
+                            order.getId().toString(),
+                            "Late webhook recovery"
+                    );
+                }
+                
+                // Step 2: Stock is available. Resurrect order!
+                order.setStatus(OrderStatus.PLACED);
+                order.setPaymentStatus(PaymentStatus.SUCCESS);
+                order.setPaymentCompletedAt(LocalDateTime.now());
+                orderRepository.save(order);
+                
+                // Call consumeStock
+                for (OrderItem item : order.getItems()) {
+                    inventoryService.consumeStock(
+                            item.getProduct().getId(),
+                            item.getQuantity().intValue(),
+                            "ORDER",
+                            order.getId().toString(),
+                            "Late webhook success"
+                    );
+                }
+                return "Payment successful (Late Recovery).";
+                
+            } catch (Exception e) {
+                // Step 3: Stock is gone. Record money taken but needs refund.
+                order.setPaymentStatus(PaymentStatus.SUCCESS_REQUIRES_REFUND);
+                order.setPaymentCompletedAt(LocalDateTime.now());
+                orderRepository.save(order);
+                return "Payment successful but stock unavailable. Requires refund.";
+            }
+        }
+
+        if (order.getPaymentStatus() != PaymentStatus.INITIATED) {
+            throw new RuntimeException("Invalid order state for payment confirmation.");
         }
 
         if (!request.isSuccess()) {
@@ -101,29 +201,29 @@ public class PaymentServiceImpl implements PaymentService {
             order.setRetryCount(order.getRetryCount() + 1);
             orderRepository.save(order);
 
-            // Kafka Event: PaymentFailedEvent
-            // paymentEventProducer.sendPaymentFailedEvent(order);
+            // Release stock on payment failure
+            for (OrderItem item : order.getItems()) {
+                inventoryService.releaseStock(
+                        item.getProduct().getId(),
+                        item.getQuantity().intValue(),
+                        "ORDER",
+                        order.getId().toString(),
+                        "Payment failed"
+                );
+            }
 
             return "Payment failed. You can retry payment up to 3 times.";
         }
 
-        // 🔥 Reduce inventory ONLY after success
+        // Consume inventory ONLY after success
         for (OrderItem item : order.getItems()) {
-            Product product = item.getProduct();
-
-            if (product.getStock() < item.getQuantity()) {
-                // Mark as failed if stock no longer available
-                order.setPaymentStatus(PaymentStatus.FAILED);
-                order.setRetryCount(order.getRetryCount() + 1);
-                orderRepository.save(order);
-
-                throw new RuntimeException(
-                        "Stock not available during payment for product: " + product.getName()
-                );
-            }
-
-            product.setStock((int) (product.getStock() - item.getQuantity()));
-            productRepository.save(product);
+            inventoryService.consumeStock(
+                    item.getProduct().getId(),
+                    item.getQuantity().intValue(),
+                    "ORDER",
+                    order.getId().toString(),
+                    "Payment success"
+            );
         }
 
         // Payment successful
@@ -131,11 +231,6 @@ public class PaymentServiceImpl implements PaymentService {
         order.setPaymentCompletedAt(LocalDateTime.now());
         order.setRetryCount(0); // Reset retry count on success
         orderRepository.save(order);
-
-        // Kafka Event: PaymentSuccessEvent
-        // paymentEventProducer.sendPaymentSuccessEvent(order);
-        // Kafka Event: OrderPlacedEvent
-        // orderEventProducer.sendOrderPlacedEvent(order);
 
         return "Payment successful";
     }

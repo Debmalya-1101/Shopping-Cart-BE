@@ -49,6 +49,7 @@ public class AdminOrderServiceImpl implements AdminOrderService {
 
     @Override
     @Transactional
+    @org.springframework.retry.annotation.Retryable(retryFor = org.springframework.orm.ObjectOptimisticLockingFailureException.class, maxAttempts = 3, backoff = @org.springframework.retry.annotation.Backoff(delay = 100))
     public AdminOrderResponseDTO updateOrderStatus(Long orderId, OrderStatus newStatus) {
 
         Order order = orderRepository.findById(orderId)

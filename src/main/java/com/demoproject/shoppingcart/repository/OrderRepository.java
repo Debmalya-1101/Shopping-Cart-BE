@@ -20,6 +20,8 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     Page<Order> findByStatus(OrderStatus status, Pageable pageable);
 
+    List<Order> findByStatusAndPaymentStatusAndUpdatedAtBefore(OrderStatus status, PaymentStatus paymentStatus, java.time.LocalDateTime time);
+
     // Check if user has a successful payment order containing this product
     @Query("SELECT CASE WHEN COUNT(o) > 0 THEN true ELSE false END " +
            "FROM Order o JOIN o.items oi JOIN oi.product p " +

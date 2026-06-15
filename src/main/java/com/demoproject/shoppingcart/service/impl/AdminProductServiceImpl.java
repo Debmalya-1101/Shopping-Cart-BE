@@ -18,6 +18,7 @@ import com.demoproject.shoppingcart.repository.ProductRepository;
 import com.demoproject.shoppingcart.repository.CategoryRepository;
 import com.demoproject.shoppingcart.repository.AttributeKeyRepository;
 import com.demoproject.shoppingcart.service.AdminProductService;
+import com.demoproject.shoppingcart.service.InventoryService;
 import com.demoproject.shoppingcart.specification.AdminProductSpecifications;
 import jakarta.transaction.Transactional;
 import org.springframework.data.domain.Page;
@@ -38,13 +39,16 @@ public class AdminProductServiceImpl implements AdminProductService {
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
     private final AttributeKeyRepository attributeKeyRepository;
+    private final InventoryService inventoryService;
 
     public AdminProductServiceImpl(ProductRepository productRepository,
                                   CategoryRepository categoryRepository,
-                                  AttributeKeyRepository attributeKeyRepository) {
+                                  AttributeKeyRepository attributeKeyRepository,
+                                  InventoryService inventoryService) {
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
         this.attributeKeyRepository = attributeKeyRepository;
+        this.inventoryService = inventoryService;
     }
 
     @Override
@@ -98,7 +102,10 @@ public class AdminProductServiceImpl implements AdminProductService {
         }
 
         Product savedProduct = productRepository.save(product);
-        return toProductAdminDTO(savedProduct);
+        inventoryService.initializeInventory(savedProduct.getId(), request.getStock());
+        
+        // Return updated product which has stock initialized (synced back from InventoryService)
+        return toProductAdminDTO(productRepository.findById(savedProduct.getId()).orElse(savedProduct));
     }
 
     @Override
@@ -114,13 +121,14 @@ public class AdminProductServiceImpl implements AdminProductService {
         product.setPrice(request.getPrice());
         product.setDescription(request.getDescription());
         product.setBrand(request.getBrand());
-        product.setStock(request.getStock());
         product.setCategory(category);
         product.setImageUrl(request.getImageUrl());
         // Update active status if explicitly provided
         if (request.getActive() != null) {
             product.setActive(request.getActive());
         }
+
+        int delta = request.getStock() - product.getStock();
 
         // Clear and update attributes
         product.getAttributes().clear();
@@ -155,6 +163,12 @@ public class AdminProductServiceImpl implements AdminProductService {
         }
 
         Product savedProduct = productRepository.save(product);
+        
+        if (delta != 0) {
+            inventoryService.adjustStock(savedProduct.getId(), delta, "MANUAL_ADJUSTMENT", null, "Admin updated product stock");
+            savedProduct = productRepository.findById(savedProduct.getId()).orElse(savedProduct);
+        }
+        
         return toProductAdminDTO(savedProduct);
     }
 
@@ -204,8 +218,10 @@ public class AdminProductServiceImpl implements AdminProductService {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", "id", id));
 
-        product.setStock(request.getStock());
-        productRepository.save(product);
+        int delta = request.getStock() - product.getStock();
+        if (delta != 0) {
+            inventoryService.adjustStock(id, delta, "MANUAL_ADJUSTMENT", null, "Admin updated stock via API");
+        }
     }
 
     @Override

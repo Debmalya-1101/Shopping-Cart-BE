@@ -61,6 +61,9 @@ public class Order {
 
 	@LastModifiedDate
 	private LocalDateTime updatedAt;
+
+	@jakarta.persistence.Version
+	private Long version;
 }
 
 
