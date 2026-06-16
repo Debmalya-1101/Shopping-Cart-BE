@@ -18,6 +18,12 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 
+import com.razorpay.RazorpayClient;
+import com.razorpay.RazorpayException;
+import com.razorpay.Utils;
+import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Value;
+
 @Service
 public class PaymentServiceImpl implements PaymentService {
 
@@ -25,6 +31,12 @@ public class PaymentServiceImpl implements PaymentService {
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
     private final com.demoproject.shoppingcart.service.InventoryService inventoryService;
+
+    @Value("${razorpay.key.id}")
+    private String razorpayKeyId;
+
+    @Value("${razorpay.key.secret}")
+    private String razorpayKeySecret;
 
     public PaymentServiceImpl(OrderRepository orderRepository,
                               ProductRepository productRepository,
@@ -52,10 +64,24 @@ public class PaymentServiceImpl implements PaymentService {
         Order order = prepareOrderForPayment(orderId);
 
         // Step 2: External HTTP Call (No DB Tx)
-        // Generate unique payment reference ID
+        // Generate unique payment reference ID (used as receipt in Razorpay)
         String paymentReferenceId = "REF_" + UUID.randomUUID().toString().substring(0, 12).toUpperCase();
-        // Mock token (like Razorpay orderId)
-        String token = "PAY_" + System.currentTimeMillis();
+        String token = "";
+
+        try {
+            RazorpayClient razorpayClient = new RazorpayClient(razorpayKeyId, razorpayKeySecret);
+
+            JSONObject orderRequest = new JSONObject();
+            // Amount in paise (multiply by 100)
+            orderRequest.put("amount", order.getTotal() * 100); 
+            orderRequest.put("currency", "INR");
+            orderRequest.put("receipt", paymentReferenceId);
+
+            com.razorpay.Order razorpayOrder = razorpayClient.orders.create(orderRequest);
+            token = razorpayOrder.get("id"); // razorpay_order_id
+        } catch (RazorpayException e) {
+            throw new RuntimeException("Error while creating Razorpay order: " + e.getMessage(), e);
+        }
 
         // Step 3: Transactional save state
         return savePaymentInitiationState(orderId, paymentReferenceId, token);
@@ -213,6 +239,22 @@ public class PaymentServiceImpl implements PaymentService {
             }
 
             return "Payment failed. You can retry payment up to 3 times.";
+        }
+
+        // Verify Razorpay signature
+        try {
+            JSONObject options = new JSONObject();
+            options.put("razorpay_order_id", request.getPaymentToken());
+            options.put("razorpay_payment_id", request.getRazorpayPaymentId());
+            options.put("razorpay_signature", request.getRazorpaySignature());
+
+            boolean isValid = Utils.verifyPaymentSignature(options, razorpayKeySecret);
+
+            if (!isValid) {
+                throw new RuntimeException("Invalid Razorpay signature. Payment verification failed.");
+            }
+        } catch (RazorpayException e) {
+            throw new RuntimeException("Error verifying Razorpay signature: " + e.getMessage(), e);
         }
 
         // Consume inventory ONLY after success

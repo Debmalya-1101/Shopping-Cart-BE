@@ -108,6 +108,9 @@ Supported product list query params:
 | POST | `/api/payments/confirm` | Bearer | `PaymentConfirmRequestDTO` | `String` |
 | POST | `/api/payments/retry` | Bearer | `RetryPaymentRequest` | `PaymentInitiateResponseDTO` |
 
+> [!NOTE]
+> The backend integrates with **Razorpay**. `POST /api/payments/initiate/{orderId}` returns a Razorpay Order ID in the `paymentToken` field. The frontend should use this token to open the Razorpay Checkout flow. After a successful payment, the frontend must submit the `razorpay_payment_id` and `razorpay_signature` to `/api/payments/confirm` to securely verify the payment.
+
 > [!WARNING]
 > `POST /api/payments/retry` enforces a maximum limit of 3 retries per order. If the limit is exceeded, the endpoint will return an HTTP 500/400 error with the message "Maximum payment retries exceeded. Please create a new order."
 
@@ -306,7 +309,9 @@ Used to build the attributes section of the product add/edit form.
   "orderId": 1,
   "paymentToken": "string",
   "paymentReferenceId": "string",
-  "success": true
+  "success": true,
+  "razorpayPaymentId": "string",
+  "razorpaySignature": "string"
 }
 ```
 

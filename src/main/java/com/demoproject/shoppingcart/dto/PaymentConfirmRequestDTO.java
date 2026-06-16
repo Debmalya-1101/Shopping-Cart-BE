@@ -8,5 +8,9 @@ public class PaymentConfirmRequestDTO {
     private String paymentToken;
     private String paymentReferenceId;
     private boolean success;
+    
+    // Razorpay specific fields
+    private String razorpayPaymentId;
+    private String razorpaySignature;
 }
 
