@@ -41,4 +41,16 @@ public class ProductController {
     public ProductDetailDTO getProduct(@PathVariable Long id) {
         return productService.getProductById(id);
     }
+
+    // GET /api/products/categories
+    @GetMapping("/categories")
+    public java.util.List<String> getCatalogCategories() {
+        return productService.getDistinctCategoryNames();
+    }
+
+    // GET /api/products/brands
+    @GetMapping("/brands")
+    public java.util.List<String> getCatalogBrands() {
+        return productService.getDistinctBrands();
+    }
 }

@@ -6,11 +6,13 @@ import com.demoproject.shoppingcart.repository.*;
 import com.demoproject.shoppingcart.service.CartService;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional
 public class CartServiceImpl implements CartService {
 
     private final CartRepository cartRepository;
@@ -52,12 +54,9 @@ public class CartServiceImpl implements CartService {
         AppUser user = getLoggedInUser();
         Cart cart = getOrCreateCart(user);
 
-        Product product = productRepository.findById(request.getProductId())
-                .orElseThrow(() -> new RuntimeException("Product not found"));
-
-        // Check if product already in cart
+        // Check if product already in cart first
         CartItem existingItem = cart.getItems().stream()
-                .filter(i -> i.getProduct().getId().equals(product.getId()))
+                .filter(i -> i.getProduct().getId().equals(request.getProductId()))
                 .findFirst()
                 .orElse(null);
 
@@ -66,6 +65,9 @@ public class CartServiceImpl implements CartService {
             long newQty = existingItem.getQuantity() + request.getQuantity();
             existingItem.setQuantity(newQty);
         } else {
+            Product product = productRepository.findById(request.getProductId())
+                    .orElseThrow(() -> new RuntimeException("Product not found"));
+
             // Create new cart item
             CartItem item = new CartItem();
             item.setCart(cart);
@@ -87,7 +89,9 @@ public class CartServiceImpl implements CartService {
         AppUser user = getLoggedInUser();
         Cart cart = getOrCreateCart(user);
 
-        CartItem item = cartItemRepository.findById(itemId)
+        CartItem item = cart.getItems().stream()
+                .filter(i -> i.getId().equals(itemId))
+                .findFirst()
                 .orElseThrow(() -> new RuntimeException("Item not found"));
 
         if (!item.getCart().getUser().getId().equals(user.getId())) {
@@ -112,7 +116,9 @@ public class CartServiceImpl implements CartService {
         AppUser user = getLoggedInUser();
         Cart cart = getOrCreateCart(user);
 
-        CartItem item = cartItemRepository.findById(itemId)
+        CartItem item = cart.getItems().stream()
+                .filter(i -> i.getId().equals(itemId))
+                .findFirst()
                 .orElseThrow(() -> new RuntimeException("Item not found"));
 
         if (!item.getCart().getUser().getId().equals(user.getId())) {

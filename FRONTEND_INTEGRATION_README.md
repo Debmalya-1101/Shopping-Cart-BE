@@ -49,6 +49,8 @@ JWT details from code:
 |---|---|---|---|---|
 | GET | `/api/products` | Public | Query params | `PageResponse<ProductListDTO>` |
 | GET | `/api/products/{id}` | Public | Path param | `ProductDetailDTO` |
+| GET | `/api/products/categories` | Public | None | `List<String>` |
+| GET | `/api/products/brands` | Public | None | `List<String>` |
 
 Supported product list query params:
 

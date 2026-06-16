@@ -4,6 +4,8 @@ import com.demoproject.shoppingcart.dto.PageResponse;
 import com.demoproject.shoppingcart.dto.ProductDetailDTO;
 import com.demoproject.shoppingcart.dto.ProductListDTO;
 
+import java.util.List;
+
 public interface ProductService {
 
     PageResponse<ProductListDTO> getAllProducts(int page,
@@ -18,4 +20,8 @@ public interface ProductService {
 
 
     ProductDetailDTO getProductById(Long id);
+
+    List<String> getDistinctCategoryNames();
+
+    List<String> getDistinctBrands();
 }

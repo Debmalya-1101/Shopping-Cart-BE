@@ -85,6 +85,16 @@ public class ProductServiceImpl implements ProductService {
         return toProductDetailDTO(product);
     }
 
+    @Override
+    public List<String> getDistinctCategoryNames() {
+        return productRepository.findDistinctCategoryNames();
+    }
+
+    @Override
+    public List<String> getDistinctBrands() {
+        return productRepository.findDistinctBrands();
+    }
+
     // ----------------- Mapping helpers -----------------
 
     private ProductListDTO toProductListDTO(Product product) {
