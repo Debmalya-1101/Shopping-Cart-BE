@@ -3,8 +3,12 @@ package com.demoproject.shoppingcart.controller;
 import com.demoproject.shoppingcart.dto.*;
 import com.demoproject.shoppingcart.model.Role;
 import com.demoproject.shoppingcart.model.AppUser;
+import com.demoproject.shoppingcart.model.DeliveryPartner;
+import com.demoproject.shoppingcart.model.DeliveryPartnerStatus;
+import com.demoproject.shoppingcart.repository.DeliveryPartnerRepository;
 import com.demoproject.shoppingcart.repository.UserRepository;
 import com.demoproject.shoppingcart.security.JwtUtil;
+import com.demoproject.shoppingcart.service.DeliveryPartnerService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.*;
 import org.springframework.security.core.Authentication;
@@ -22,19 +26,25 @@ public class AuthController {
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final DeliveryPartnerService deliveryPartnerService;
+    private final DeliveryPartnerRepository deliveryPartnerRepository;
 
     public AuthController(AuthenticationManager authenticationManager,
                           JwtUtil jwtUtil,
                           UserRepository userRepository,
-                          PasswordEncoder passwordEncoder) {
+                          PasswordEncoder passwordEncoder,
+                          DeliveryPartnerService deliveryPartnerService,
+                          DeliveryPartnerRepository deliveryPartnerRepository) {
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.deliveryPartnerService = deliveryPartnerService;
+        this.deliveryPartnerRepository = deliveryPartnerRepository;
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
 
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
@@ -51,6 +61,21 @@ public class AuthController {
                 .findFirst()
                 .map(Object::toString)
                 .orElse("ROLE_USER");
+
+        if ("ROLE_DELIVERY_PARTNER".equals(role)) {
+            AppUser appUser = userRepository.findByUserName(principal.getUsername())
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            DeliveryPartner dp = deliveryPartnerRepository.findByUser(appUser)
+                    .orElseThrow(() -> new RuntimeException("Delivery Partner not found"));
+            
+            if (dp.getStatus() == DeliveryPartnerStatus.PENDING) {
+                return ResponseEntity.status(403).body("Your account is pending admin approval.");
+            } else if (dp.getStatus() == DeliveryPartnerStatus.REJECTED) {
+                return ResponseEntity.status(403).body("Your account registration has been rejected.");
+            } else if (dp.getStatus() == DeliveryPartnerStatus.SUSPENDED) {
+                return ResponseEntity.status(403).body("Your account has been suspended.");
+            }
+        }
 
         String token = jwtUtil.generateToken(principal.getUsername(), role);
 
@@ -77,6 +102,16 @@ public class AuthController {
         userRepository.save(user);
 
         return ResponseEntity.ok("AppUser registered successfully");
+    }
+
+    @PostMapping("/delivery-partner/signup")
+    public ResponseEntity<String> registerDeliveryPartner(@RequestBody DeliveryPartnerSignupRequest request) {
+        try {
+            deliveryPartnerService.registerDeliveryPartner(request);
+            return ResponseEntity.ok("Delivery Partner registered successfully. Pending admin approval.");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     @GetMapping("/me")

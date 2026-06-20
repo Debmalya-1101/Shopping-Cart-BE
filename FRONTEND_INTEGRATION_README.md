@@ -235,6 +235,47 @@ Used to build the attributes section of the product add/edit form.
 > [!WARNING]
 > Deleting an attribute key fails with `400` if any product currently has a value for that key.
 
+### Delivery Partner Auth
+
+| Method | Path | Auth | Request | Response |
+|---|---|---|---|---|
+| POST | `/auth/delivery-partner/signup` | Public | `DeliveryPartnerSignupRequest` | `String` |
+
+### Admin Delivery Partner Management
+
+| Method | Path | Auth | Request | Response |
+|---|---|---|---|---|
+| GET | `/api/admin/delivery-partners` | Admin Bearer | `?status=` (optional) | `List<DeliveryPartnerResponseDTO>` |
+| GET | `/api/admin/delivery-partners/{id}` | Admin Bearer | Path param | `DeliveryPartnerResponseDTO` |
+| PUT | `/api/admin/delivery-partners/{id}/status` | Admin Bearer | `DeliveryPartnerStatusUpdateRequest` | `DeliveryPartnerResponseDTO` |
+
+### Admin Shipments
+
+| Method | Path | Auth | Request | Response |
+|---|---|---|---|---|
+| GET | `/api/admin/shipments/unassigned` | Admin Bearer | None | `List<ShipmentResponseDTO>` |
+| POST | `/api/admin/shipments/{shipmentId}/assign/{partnerId}` | Admin Bearer | Path params | `ShipmentResponseDTO` |
+
+### Delivery Partner Dashboard
+
+| Method | Path | Auth | Request | Response |
+|---|---|---|---|---|
+| GET | `/api/delivery-partner/shipments/dashboard` | DP Bearer | None | `DeliveryPartnerDashboardDTO` |
+| GET | `/api/delivery-partner/shipments/active` | DP Bearer | None | `List<ShipmentResponseDTO>` |
+| GET | `/api/delivery-partner/shipments/history` | DP Bearer | None | `List<ShipmentResponseDTO>` |
+| GET | `/api/delivery-partner/shipments/{id}` | DP Bearer | Path param | `ShipmentResponseDTO` |
+| PUT | `/api/delivery-partner/shipments/{id}/status` | DP Bearer | `ShipmentStatusUpdateRequest` | `ShipmentResponseDTO` |
+
+### Delivery Feedback
+
+| Method | Path | Auth | Request | Response |
+|---|---|---|---|---|
+| POST | `/api/orders/{orderId}/delivery-feedback` | Bearer (User) | `DeliveryFeedbackRequestDTO` | `DeliveryFeedbackResponseDTO` |
+| GET | `/api/delivery-partner/feedback` | DP Bearer | None | `List<DeliveryFeedbackResponseDTO>` |
+| GET | `/api/delivery-partner/feedback/summary` | DP Bearer | None | `DeliveryPartnerRatingSummaryDTO` |
+| GET | `/api/admin/delivery-partners/{id}/feedback` | Admin Bearer | Path param | `List<AdminDeliveryFeedbackResponseDTO>` |
+| GET | `/api/admin/delivery-partners/ratings` | Admin Bearer | None | `List<DeliveryPartnerRatingSummaryDTO>` |
+
 ## Request DTOs
 
 ### `LoginRequest`
@@ -461,6 +502,49 @@ For `CreateProductRequest`, `active` defaults to `true` if not provided.
 
 > [!NOTE]
 > Like ASIN scraping, multiple FSNs are processed sequentially with a **5-second delay** in between.
+
+### `DeliveryPartnerSignupRequest`
+
+```json
+{
+  "fullName": "string",
+  "email": "string",
+  "password": "string",
+  "phoneNumber": "9876543210",
+  "dateOfBirth": "2000-01-01",
+  "address": "string",
+  "vehicleType": "BIKE",
+  "vehicleNumber": "string",
+  "idType": "DRIVING_LICENSE",
+  "idNumber": "string"
+}
+```
+
+### `DeliveryPartnerStatusUpdateRequest`
+
+```json
+{
+  "status": "APPROVED"
+}
+```
+
+### `ShipmentStatusUpdateRequest`
+
+```json
+{
+  "status": "PICKED_UP",
+  "failureReason": "string"
+}
+```
+
+### `DeliveryFeedbackRequestDTO`
+
+```json
+{
+  "rating": 5,
+  "comment": "string"
+}
+```
 
 ## Response DTOs
 
@@ -931,6 +1015,113 @@ The `attributes` array includes `keyName` so the frontend edit form can display 
 }
 ```
 
+### `DeliveryPartnerResponseDTO`
+
+```json
+{
+  "id": 1,
+  "fullName": "string",
+  "phoneNumber": "string",
+  "vehicleType": "BIKE",
+  "vehicleRegistrationNumber": "string",
+  "drivingLicenseNumber": "string",
+  "status": "APPROVED",
+  "createdAt": "2026-06-19T10:00:00",
+  "updatedAt": "2026-06-19T10:00:00",
+  "approvedByAdminUsername": "admin1",
+  "approvedAt": "2026-06-19T11:00:00"
+}
+```
+
+### `ShipmentResponseDTO`
+
+```json
+{
+  "id": 1,
+  "orderId": 12,
+  "deliveryPartnerId": 5,
+  "status": "OUT_FOR_DELIVERY",
+  "trackingNumber": "SHP-20260619-000012",
+  "expectedDeliveryDate": "2026-06-22",
+  "failureReason": "string",
+  "createdAt": "2026-06-19T10:00:00",
+  "updatedAt": "2026-06-19T10:00:00"
+}
+```
+
+### `DeliveryPartnerDashboardDTO`
+
+```json
+{
+  "totalAssigned": 5,
+  "totalPickedUp": 2,
+  "totalOutForDelivery": 3,
+  "totalDelivered": 150,
+  "totalFailed": 2
+}
+```
+
+### `DeliveryFeedbackResponseDTO`
+
+```json
+{
+  "id": 1,
+  "orderId": 12,
+  "rating": 5,
+  "comment": "string",
+  "createdAt": "2026-06-19T12:00:00"
+}
+```
+
+### `AdminDeliveryFeedbackResponseDTO`
+
+```json
+{
+  "id": 1,
+  "orderId": 12,
+  "customerId": 1,
+  "customerUsername": "string",
+  "customerEmail": "string",
+  "deliveryPartnerId": 5,
+  "deliveryPartnerName": "string",
+  "rating": 5,
+  "comment": "string",
+  "createdAt": "2026-06-19T12:00:00"
+}
+```
+
+### `DeliveryPartnerRatingSummaryDTO`
+
+```json
+{
+  "deliveryPartnerId": 5,
+  "averageRating": 4.8,
+  "totalReviews": 100
+}
+```
+
+## Enums
+
+### `DeliveryPartnerStatus`
+- `PENDING`: Initial state after registration.
+- `APPROVED`: Admin approved. Partner can login and receive shipments.
+- `REJECTED`: Admin rejected. Login blocked.
+- `SUSPENDED`: Admin suspended. Login blocked.
+
+### `ShipmentStatus`
+- `CREATED`: Initial state (unassigned).
+- `ASSIGNED`: Assigned to a delivery partner.
+- `PICKED_UP`: Partner picked up the shipment.
+- `OUT_FOR_DELIVERY`: Shipment is on the way to the customer.
+- `DELIVERED`: Successfully delivered.
+- `FAILED`: Delivery attempt failed.
+- `RETURNED`: Shipment returned to warehouse.
+
+### `VehicleType`
+- `BIKE`
+- `VAN`
+- `TRUCK`
+
 ## Validation Rules
 
 ### Bean validation actually enforced with `@Valid`
@@ -989,6 +1180,18 @@ The `attributes` array includes `keyName` so the frontend edit form can display 
 - Admin order status rules:
   - final states `DELIVERED` and `CANCELLED` cannot change
   - `PLACED -> DELIVERED` is rejected; it must be shipped first
+- Delivery partner login fails with `403 Forbidden` if status is `PENDING`, `REJECTED`, or `SUSPENDED`.
+- Delivery partners can only access and update shipments assigned to them.
+- Shipment status transitions are strictly enforced:
+  - Admin: `CREATED` -> `ASSIGNED`
+  - Partner: `ASSIGNED` -> `PICKED_UP` -> `OUT_FOR_DELIVERY` -> `DELIVERED` | `FAILED`
+  - Admin Reassignment: `ASSIGNED` or `FAILED` -> `ASSIGNED` (to a new partner)
+  - Admin: `FAILED` -> `RETURNED`
+- `FAILED` shipments must include a `failureReason` when updated by a partner.
+- Order status is automatically synced when shipment reaches `OUT_FOR_DELIVERY` (to `SHIPPED`), `DELIVERED`, or `RETURNED`. `FAILED` shipment does not change order status.
+- Customers can only submit delivery feedback for `DELIVERED` shipments.
+- Delivery feedback is limited to one per order (duplicate check).
+- Delivery partners view an anonymized version of their feedback (no customer info). Admins view full details.
 
 ## Error Response Structure
 
@@ -1030,3 +1233,5 @@ Used by `GlobalExceptionHandler` for:
 - Use `role === "ROLE_ADMIN"` to gate admin UI
 - Treat product/order status values as backend enums and avoid hardcoding alternate spellings
 - For reviews, do not show write UI unless the user has purchased the product, or be ready to surface the backend rejection message
+
+

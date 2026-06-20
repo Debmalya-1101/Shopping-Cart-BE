@@ -1,0 +1,1 @@
+ALTER TABLE shipments ADD COLUMN version BIGINT DEFAULT 0;

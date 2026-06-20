@@ -31,6 +31,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
     private final com.demoproject.shoppingcart.service.InventoryService inventoryService;
+    private final com.demoproject.shoppingcart.service.ShipmentService shipmentService;
 
     @Value("${razorpay.key.id}")
     private String razorpayKeyId;
@@ -41,11 +42,13 @@ public class PaymentServiceImpl implements PaymentService {
     public PaymentServiceImpl(OrderRepository orderRepository,
                               ProductRepository productRepository,
                               UserRepository userRepository,
-                              com.demoproject.shoppingcart.service.InventoryService inventoryService) {
+                              com.demoproject.shoppingcart.service.InventoryService inventoryService,
+                              com.demoproject.shoppingcart.service.ShipmentService shipmentService) {
         this.orderRepository = orderRepository;
         this.productRepository = productRepository;
         this.userRepository = userRepository;
         this.inventoryService = inventoryService;
+        this.shipmentService = shipmentService;
     }
 
     private AppUser getLoggedInUser() {
@@ -206,6 +209,10 @@ public class PaymentServiceImpl implements PaymentService {
                             "Late webhook success"
                     );
                 }
+
+                // Create shipment for resurrected order
+                shipmentService.createShipmentForOrder(order);
+
                 return "Payment successful (Late Recovery).";
                 
             } catch (Exception e) {
@@ -273,6 +280,9 @@ public class PaymentServiceImpl implements PaymentService {
         order.setPaymentCompletedAt(LocalDateTime.now());
         order.setRetryCount(0); // Reset retry count on success
         orderRepository.save(order);
+
+        // Create shipment
+        shipmentService.createShipmentForOrder(order);
 
         return "Payment successful";
     }
