@@ -32,6 +32,9 @@ public class AmazonScrapeResultDTO {
     private int attributesInserted;  // Number of spec attributes saved
     private int reviewsSimulated;    // Number of fake reviews created
     private int ordersSimulated;     // Number of fake orders created
+    private boolean inventorySimulated; // Whether inventory was created
+    private int shipmentsSimulated;  // Number of fake shipments created
+    private int feedbacksSimulated;  // Number of fake feedbacks created
 
     // === Full Gallery (for Postman visibility) ===
     private List<String> galleryImageUrls;

@@ -64,6 +64,11 @@ public class AmazonScraperServiceImpl implements AmazonScraperService {
     private final ReviewRepository reviewRepository;
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
+    private final InventoryRepository inventoryRepository;
+    private final InventoryTransactionRepository inventoryTransactionRepository;
+    private final ShipmentRepository shipmentRepository;
+    private final DeliveryPartnerRepository deliveryPartnerRepository;
+    private final DeliveryFeedbackRepository deliveryFeedbackRepository;
     private final TransactionTemplate transactionTemplate;
 
     public AmazonScraperServiceImpl(
@@ -75,6 +80,11 @@ public class AmazonScraperServiceImpl implements AmazonScraperService {
             ReviewRepository reviewRepository,
             OrderRepository orderRepository,
             UserRepository userRepository,
+            InventoryRepository inventoryRepository,
+            InventoryTransactionRepository inventoryTransactionRepository,
+            ShipmentRepository shipmentRepository,
+            DeliveryPartnerRepository deliveryPartnerRepository,
+            DeliveryFeedbackRepository deliveryFeedbackRepository,
             PlatformTransactionManager transactionManager) {
         this.categoryRepository = categoryRepository;
         this.productRepository = productRepository;
@@ -84,6 +94,11 @@ public class AmazonScraperServiceImpl implements AmazonScraperService {
         this.reviewRepository = reviewRepository;
         this.orderRepository = orderRepository;
         this.userRepository = userRepository;
+        this.inventoryRepository = inventoryRepository;
+        this.inventoryTransactionRepository = inventoryTransactionRepository;
+        this.shipmentRepository = shipmentRepository;
+        this.deliveryPartnerRepository = deliveryPartnerRepository;
+        this.deliveryFeedbackRepository = deliveryFeedbackRepository;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
@@ -445,6 +460,25 @@ public class AmazonScraperServiceImpl implements AmazonScraperService {
         product = productRepository.save(product);
         log.info("Saved product: id={}, name='{}'", product.getId(), product.getName());
 
+        // ── 2.5. Initialize Inventory ─────────────────────────────────────────
+        Inventory inventory = new Inventory();
+        inventory.setProduct(product);
+        inventory.setAvailableQuantity(product.getStock());
+        inventory.setReservedQuantity(0);
+        inventory.setDamagedQuantity(0);
+        inventory.setReorderLevel(5);
+        inventory = inventoryRepository.save(inventory);
+
+        InventoryTransaction tx = new InventoryTransaction();
+        tx.setInventory(inventory);
+        tx.setTransactionType(InventoryTransactionType.RESTOCK);
+        tx.setReferenceType("SYSTEM_SEED");
+        tx.setReferenceId("AMAZON-SCRAPE");
+        tx.setQuantity(product.getStock());
+        tx.setNotes("Initial stock from scraping");
+        inventoryTransactionRepository.save(tx);
+        boolean inventorySimulated = true;
+
         // ── 3. Save gallery images to product_images table ────────────────────
         int imagesInserted = 0;
         for (String imageUrl : gallery) {
@@ -495,7 +529,10 @@ public class AmazonScraperServiceImpl implements AmazonScraperService {
         product = productRepository.save(product);
 
         // ── 6. Simulate historical orders linked to existing users ─────────────
-        int ordersCreated = simulateOrders(product, request.getSimulatedOrders());
+        int[] ordersSimStats = simulateOrders(product, request.getSimulatedOrders());
+        int ordersCreated = ordersSimStats[0];
+        int shipmentsCreated = ordersSimStats[1];
+        int feedbacksCreated = ordersSimStats[2];
 
         // ── 7. Build and return the result DTO ────────────────────────────────
         return AmazonScrapeResultDTO.builder()
@@ -513,6 +550,9 @@ public class AmazonScraperServiceImpl implements AmazonScraperService {
                 .attributesInserted(attributesInserted)
                 .reviewsSimulated(reviewsCreated)
                 .ordersSimulated(ordersCreated)
+                .inventorySimulated(inventorySimulated)
+                .shipmentsSimulated(shipmentsCreated)
+                .feedbacksSimulated(feedbacksCreated)
                 .build();
     }
 
@@ -575,15 +615,19 @@ public class AmazonScraperServiceImpl implements AmazonScraperService {
      * Simulates historical DELIVERED orders spread across the last 12 months
      * to populate the admin analytics dashboard with realistic data.
      */
-    private int simulateOrders(Product product, int count) {
+    private int[] simulateOrders(Product product, int count) {
         List<AppUser> users = userRepository.findAll();
         if (users.isEmpty()) {
             log.warn("No users found in DB, skipping order simulation.");
-            return 0;
+            return new int[]{0, 0, 0};
         }
 
+        List<DeliveryPartner> activePartners = deliveryPartnerRepository.findByStatus(DeliveryPartnerStatus.APPROVED);
+
         Random random = new Random();
-        int created = 0;
+        int ordersCreated = 0;
+        int shipmentsCreated = 0;
+        int feedbacksCreated = 0;
 
         for (int i = 0; i < count; i++) {
             try {
@@ -621,13 +665,37 @@ public class AmazonScraperServiceImpl implements AmazonScraperService {
                 order.addItem(item);
 
                 orderRepository.save(order);
-                created++;
+                ordersCreated++;
+
+                if (!activePartners.isEmpty()) {
+                    DeliveryPartner partner = activePartners.get(random.nextInt(activePartners.size()));
+
+                    Shipment shipment = new Shipment();
+                    shipment.setOrder(order);
+                    shipment.setDeliveryPartner(partner);
+                    shipment.setStatus(ShipmentStatus.DELIVERED);
+                    shipment.setTrackingNumber("TRK-" + UUID.randomUUID().toString().substring(0, 10).toUpperCase());
+                    shipment.setExpectedDeliveryDate(historicalDate.toLocalDate().plusDays(random.nextInt(5) + 1));
+                    shipmentRepository.save(shipment);
+                    shipmentsCreated++;
+
+                    DeliveryFeedback feedback = new DeliveryFeedback();
+                    feedback.setOrder(order);
+                    feedback.setShipment(shipment);
+                    feedback.setCustomer(user);
+                    feedback.setDeliveryPartner(partner);
+                    feedback.setRating(3 + random.nextInt(3)); // 3, 4, 5
+                    feedback.setComment("Good delivery service.");
+                    deliveryFeedbackRepository.save(feedback);
+                    feedbacksCreated++;
+                }
+
             } catch (Exception e) {
                 log.warn("Could not create order #{}: {}", i + 1, e.getMessage());
             }
         }
-        log.info("Simulated {} orders", created);
-        return created;
+        log.info("Simulated {} orders, {} shipments, {} feedbacks", ordersCreated, shipmentsCreated, feedbacksCreated);
+        return new int[]{ordersCreated, shipmentsCreated, feedbacksCreated};
     }
 
     // =====================================================================
