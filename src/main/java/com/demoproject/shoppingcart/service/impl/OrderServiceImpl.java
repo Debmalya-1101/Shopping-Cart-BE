@@ -12,6 +12,7 @@ import com.demoproject.shoppingcart.repository.CartItemRepository;
 import com.demoproject.shoppingcart.repository.CartRepository;
 import com.demoproject.shoppingcart.repository.OrderRepository;
 import com.demoproject.shoppingcart.repository.UserRepository;
+import com.demoproject.shoppingcart.repository.ShipmentRepository;
 import com.demoproject.shoppingcart.service.OrderService;
 import jakarta.transaction.Transactional;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -30,14 +31,16 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final CartItemRepository cartItemRepository;
     private final AddressRepository addressRepository;
+    private final ShipmentRepository shipmentRepository;
     private final com.demoproject.shoppingcart.service.InventoryService inventoryService;
 
-    public OrderServiceImpl(UserRepository userRepository, CartRepository cartRepository, OrderRepository orderRepository, CartItemRepository cartItemRepository, AddressRepository addressRepository, com.demoproject.shoppingcart.service.InventoryService inventoryService) {
+    public OrderServiceImpl(UserRepository userRepository, CartRepository cartRepository, OrderRepository orderRepository, CartItemRepository cartItemRepository, AddressRepository addressRepository, ShipmentRepository shipmentRepository, com.demoproject.shoppingcart.service.InventoryService inventoryService) {
         this.userRepository = userRepository;
         this.cartRepository = cartRepository;
         this.orderRepository = orderRepository;
         this.cartItemRepository = cartItemRepository;
         this.addressRepository = addressRepository;
+        this.shipmentRepository = shipmentRepository;
         this.inventoryService = inventoryService;
     }
 
@@ -204,10 +207,16 @@ public class OrderServiceImpl implements OrderService {
                         i.getPrice() * i.getQuantity()
                 )).toList();
 
+        String deliveryStatus = shipmentRepository.findByOrderId(order.getId())
+                .map(s -> s.getStatus().name())
+                .orElse("PENDING");
+
         return new OrderResponseDTO(
                 order.getId(),
                 order.getTotal(),
                 order.getStatus().name(),
+                order.getPaymentStatus() != null ? order.getPaymentStatus().name() : "PENDING",
+                deliveryStatus,
                 order.getCreatedAt(),
                 items
         );

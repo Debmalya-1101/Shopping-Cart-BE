@@ -14,6 +14,8 @@ public class OrderResponseDTO {
     private Long orderId;
     private Long total;
     private String status;
+    private String paymentStatus;
+    private String deliveryStatus;
     private LocalDateTime createdAt;
     private List<OrderItemDTO> items;
 }
