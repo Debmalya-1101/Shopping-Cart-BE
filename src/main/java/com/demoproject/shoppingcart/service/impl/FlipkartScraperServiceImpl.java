@@ -9,6 +9,7 @@ import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.WaitUntilState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -26,6 +27,7 @@ import java.util.regex.Pattern;
  * extract product data, format paragraphs as bullets, and persist it across database tables.
  */
 @Service
+@Profile("!dev")
 public class FlipkartScraperServiceImpl implements FlipkartScraperService {
 
     private static final Logger log = LoggerFactory.getLogger(FlipkartScraperServiceImpl.class);

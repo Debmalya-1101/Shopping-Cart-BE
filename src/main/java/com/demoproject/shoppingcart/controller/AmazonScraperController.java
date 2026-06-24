@@ -6,6 +6,7 @@ import com.demoproject.shoppingcart.service.AmazonScraperService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.context.annotation.Profile;
 
 import java.util.List;
 
@@ -24,6 +25,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/admin/scraper")
 @CrossOrigin(origins = "*")
+@Profile("!dev")
 public class AmazonScraperController {
 
     private final AmazonScraperService amazonScraperService;

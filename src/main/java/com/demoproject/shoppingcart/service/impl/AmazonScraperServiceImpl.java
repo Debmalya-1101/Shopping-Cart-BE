@@ -9,6 +9,7 @@ import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.WaitUntilState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +36,7 @@ import java.util.regex.Pattern;
  *  7. Close browser and return AmazonScrapeResultDTO.
  */
 @Service
+@Profile("!dev")
 public class AmazonScraperServiceImpl implements AmazonScraperService {
 
     private static final Logger log = LoggerFactory.getLogger(AmazonScraperServiceImpl.class);
