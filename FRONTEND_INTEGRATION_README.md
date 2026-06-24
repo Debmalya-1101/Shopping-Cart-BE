@@ -774,6 +774,8 @@ Returned by `POST /api/orders/checkout` and `GET /api/orders` (list view). Inten
   "orderId": 1,
   "total": 2000,
   "status": "PLACED",
+  "paymentStatus": "COMPLETED",
+  "deliveryStatus": "PENDING",
   "createdAt": "2026-05-11T12:00:00",
   "items": [
     {
