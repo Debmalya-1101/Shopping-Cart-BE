@@ -1,0 +1,32 @@
+package com.demoproject.shoppingcart.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+public class ProductAdminDTO {
+    private Long id;
+    private String name;
+    private String description;
+    private Long price;
+    private Integer stock;
+    private Boolean active;
+    private String brand;
+    private Long categoryId;
+    private String categoryName;
+    private Double rating;
+    private String imageUrl;           // Primary / base image URL
+    private List<String> imageUrls;    // Additional product images
+    private List<AdminAttributeDTO> attributes;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+}
+

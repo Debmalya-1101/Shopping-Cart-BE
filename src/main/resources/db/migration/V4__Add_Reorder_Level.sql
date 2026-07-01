@@ -1,0 +1,1 @@
+ALTER TABLE inventory ADD COLUMN reorder_level INT NOT NULL DEFAULT 5;

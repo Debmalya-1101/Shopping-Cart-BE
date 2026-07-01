@@ -1,74 +1,68 @@
 package com.demoproject.shoppingcart.model;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.*;
+import jakarta.persistence.Id;
+import lombok.*;
+import org.springframework.data.annotation.*;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 @Entity
-@Table(name = "cartitem") 
+@EntityListeners(AuditingEntityListener.class)
+@Table(name = "carts")
 public class Cart {
-	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long id;
-	private Long productId;
-    private String productName;
-    private Long qty;
-    private Long price;
-    private int userId;
-	
-	public Cart() {
-		super();
-		// TODO Auto-generated constructor stub
-	}
-	
-	public Cart(Long id, Long productId, String productName, Long qty, Long price, int userId) {
-		super();
-		this.id = id;
-		this.productId = productId;
-		this.productName = productName;
-		this.qty = qty;
-		this.price = price;
-		this.userId = userId;
-	}
 
-	public Long getId() {
-		return id;
-	}
-	public void setId(Long id) {
-		this.id = id;
-	}
-	public Long getProductId() {
-		return productId;
-	}
-	public void setProductId(Long productId) {
-		this.productId = productId;
-	}
-	public String getProductName() {
-		return productName;
-	}
-	public void setProductName(String productName) {
-		this.productName = productName;
-	}
-	public Long getQty() {
-		return qty;
-	}
-	public void setQty(Long qty) {
-		this.qty = qty;
-	}
-	public Long getPrice() {
-		return price;
-	}
-	public void setPrice(Long price) {
-		this.price = price;
-	}
-	
-	public int getUserId() {
-		return userId;
-	}
-	public void setUserId(int userId) {
-		this.userId = userId;
-	}
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
+    @JsonIgnore
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private AppUser user;
+
+    @OneToMany(mappedBy = "cart", fetch = FetchType.LAZY,
+            cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<CartItem> items = new ArrayList<>();
+
+    private Long totalPrice = 0L;
+
+    // Helper to maintain relationship + auto price update
+    public void addItem(CartItem item) {
+        items.add(item);
+        item.setCart(this);
+        updateTotal();
+    }
+
+    public void removeItem(CartItem item) {
+        items.remove(item);
+        item.setCart(null);
+        updateTotal();
+    }
+
+    public void updateTotal() {
+        totalPrice = items.stream()
+                .mapToLong(i -> i.getPrice() * i.getQuantity())
+                .sum();
+    }
+
+    @CreatedDate
+    private LocalDateTime createdAt;
+
+    @LastModifiedDate
+    private LocalDateTime updatedAt;
+
+    @CreatedBy
+    private String createdBy;
+
+    @LastModifiedBy
+    private String updatedBy;
 }
