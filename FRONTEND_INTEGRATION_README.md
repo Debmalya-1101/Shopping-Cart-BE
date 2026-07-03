@@ -4,34 +4,65 @@
 
 - Base URL: use your backend host, e.g. `http://localhost:8080`
 - CORS: all controllers use `@CrossOrigin(origins = "*")`
-- Auth type: JWT bearer token
+- Auth type: JWT bearer token (short-lived) + opaque refresh token (long-lived)
 - Public routes:
   - `/auth/login`
   - `/auth/signup`
+  - `/auth/refresh`
+  - `/oauth2/authorization/google`
+  - `/oauth2/authorization/facebook`
+  - `/login/oauth2/code/google` *(OAuth2 callback — handled by the backend, not called directly)*
+  - `/login/oauth2/code/facebook` *(OAuth2 callback — handled by the backend, not called directly)*
   - `/api/products/**`
-- Protected routes: everything else
+- Protected routes: everything else (requires `Authorization: Bearer <accessToken>`)
 - Admin-only routes: `/api/admin/**`
 
 ## Required Headers
 
-- For protected routes: `Authorization: Bearer <token>`
+- For protected routes: `Authorization: Bearer <accessToken>`
 - For JSON request bodies: `Content-Type: application/json`
 - No custom headers are required by the codebase
 
 ## Authentication Flow
 
+### Email / Password login
+
 1. `POST /auth/signup` with `emailId`, `userName`, `password`
 2. `POST /auth/login` with `usernameOrEmail`, `password`
-3. Store `token` from login response
-4. Send `Authorization: Bearer <token>` on protected requests
-5. Optionally call `GET /auth/me` to fetch the logged-in user's `username`, `emailId`, and `role`
+3. Store **both** `accessToken` and `refreshToken` from the login response
+4. Send `Authorization: Bearer <accessToken>` on all protected requests
+5. When any protected API returns `401`, call `POST /auth/refresh` with the stored `refreshToken`
+6. On a successful refresh, **replace both stored tokens** with the new values returned
+7. Retry the original failed request with the new `accessToken`
+8. If `/auth/refresh` itself returns `401`, all sessions are dead — redirect the user to the login page
+9. On explicit logout, call `POST /auth/logout` (with a valid `accessToken`) to revoke all refresh tokens server-side
+10. Optionally call `GET /auth/me` to fetch the logged-in user's `username`, `emailId`, and `role`
+
+### Social login (Google / Facebook)
+
+1. Redirect (or open in a popup) the browser to `GET /oauth2/authorization/google` or `/oauth2/authorization/facebook`
+2. The backend handles the full OAuth2 redirect flow with the provider
+3. On success, the browser is redirected to:
+   ```
+   <OAUTH2_REDIRECT_URI>?accessToken=<jwt>&refreshToken=<opaqueToken>
+   ```
+   The default redirect URI is `http://localhost:4200/oauth2/callback` — override with the `OAUTH2_REDIRECT_URI` environment variable on the server
+4. The frontend callback page reads both tokens from the URL query string, stores them, and clears the URL
+5. From this point the flow is identical to email/password login (steps 4–10 above)
+
+> [!IMPORTANT]
+> **Account linking:** If a user previously signed up with email/password using the same email address as their Google/Facebook account, the backend automatically links the accounts. They can log in via either method and will use the same user record.
 
 JWT details from code:
 
 - Token subject = username
 - Token contains `role` claim like `ROLE_USER` or `ROLE_ADMIN`
 - Token type returned by API = `Bearer`
-- Expiry configured as `86400000 ms` (24 hours)
+- **Access token expiry: `900000 ms` (15 minutes)**
+- **Refresh token expiry: `604800000 ms` (7 days)**
+
+> [!WARNING]
+> **Breaking change from earlier versions:** The login response field previously named `token` is now `accessToken`. Update any code that reads `response.token` to read `response.accessToken`.
 
 ## REST Endpoints
 
@@ -41,7 +72,29 @@ JWT details from code:
 |---|---|---|---|---|
 | POST | `/auth/login` | Public | `LoginRequest` | `AuthResponse` |
 | POST | `/auth/signup` | Public | `SignupRequest` | `String` |
+| POST | `/auth/refresh` | Public | `TokenRefreshRequest` | `TokenRefreshResponse` |
+| POST | `/auth/logout` | Bearer | None | `String` |
+| POST | `/auth/delivery-partner/signup` | Public | `DeliveryPartnerSignupRequest` | `String` |
 | GET | `/auth/me` | Bearer | None | `AuthUserInfoDTO` |
+
+### Social Login (OAuth2)
+
+These are browser redirect flows, **not** JSON API calls. The frontend initiates them by navigating the browser to the URL.
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/oauth2/authorization/google` | Public | Initiates Google OAuth2 login |
+| GET | `/oauth2/authorization/facebook` | Public | Initiates Facebook OAuth2 login |
+
+On success the backend redirects to:
+```
+<OAUTH2_REDIRECT_URI>?accessToken=<jwt>&refreshToken=<opaqueToken>
+```
+
+On failure the backend redirects to:
+```
+<OAUTH2_REDIRECT_URI>?error=<reason>
+```
 
 ### Products
 
@@ -240,6 +293,9 @@ Used to build the attributes section of the product add/edit form.
 | Method | Path | Auth | Request | Response |
 |---|---|---|---|---|
 | POST | `/auth/delivery-partner/signup` | Public | `DeliveryPartnerSignupRequest` | `String` |
+
+> [!NOTE]
+> The delivery partner signup endpoint is also listed under the Auth section above.
 
 ### Admin Delivery Partner Management
 
@@ -550,12 +606,46 @@ For `CreateProductRequest`, `active` defaults to `true` if not provided.
 
 ### `AuthResponse`
 
+Returned by `POST /auth/login` on success.
+
+> [!WARNING]
+> The field previously named `token` is now `accessToken`. Update any code that reads `response.token`.
+
 ```json
 {
-  "token": "jwt",
+  "accessToken": "<short-lived JWT — 15 min>",
+  "refreshToken": "<long-lived opaque token — 7 days>",
   "tokenType": "Bearer"
 }
 ```
+
+### `TokenRefreshRequest`
+
+Sent to `POST /auth/refresh`.
+
+```json
+{
+  "refreshToken": "<opaque refresh token string>"
+}
+```
+
+### `TokenRefreshResponse`
+
+Returned by `POST /auth/refresh`. **Both** tokens are brand-new due to refresh token rotation.
+
+```json
+{
+  "accessToken": "<new JWT — 15 min>",
+  "refreshToken": "<new rotated opaque token — 7 days>",
+  "tokenType": "Bearer"
+}
+```
+
+> [!IMPORTANT]
+> **Refresh token rotation:** every call to `/auth/refresh` invalidates the submitted refresh token and issues a completely new one. Always replace **both** stored tokens with the values from the response.
+
+> [!CAUTION]
+> **Reuse detection:** if a previously-used (invalidated) refresh token is submitted, the server detects a possible token-theft attack, immediately revokes **all** active sessions for that user, and returns `401`. The user must log in again from scratch.
 
 ### `AuthUserInfoDTO`
 
@@ -1214,6 +1304,7 @@ Many runtime and validation failures return:
 
 Used by `GlobalExceptionHandler` for:
 
+- `TokenRefreshException` -> HTTP `401` (expired, not found, or reuse-attack detected)
 - `RuntimeException` -> HTTP `400`
 - `MethodArgumentNotValidException` -> HTTP `400`
 - generic `Exception` -> HTTP `500` with message `"Something went wrong"`
@@ -1225,6 +1316,7 @@ Used by `GlobalExceptionHandler` for:
   - `"Email already in use"`
   - `"Username already in use"`
 - `/auth/me` may return `401` with an empty body
+- `/auth/refresh` returns `401` wrapped in `ApiResponse` for all failure cases (expired, invalid, reuse detected)
 - Spring Security `401/403` responses are not customized, so protected-route auth failures may return framework-default responses instead of `ApiResponse`
 
 ## Frontend Integration Advice
@@ -1236,4 +1328,66 @@ Used by `GlobalExceptionHandler` for:
 - Treat product/order status values as backend enums and avoid hardcoding alternate spellings
 - For reviews, do not show write UI unless the user has purchased the product, or be ready to surface the backend rejection message
 
+### Token management (refresh token pattern)
 
+Implement a single HTTP interceptor (e.g. Axios `response` interceptor) that:
+
+1. Attaches `Authorization: Bearer <accessToken>` to every request
+2. On a `401` response from **any** endpoint except `/auth/refresh`:
+   - Pauses the failed request
+   - Calls `POST /auth/refresh` with the stored `refreshToken`
+   - If refresh succeeds → stores both new tokens and retries the original request
+   - If refresh returns `401` → clears all stored tokens and redirects to `/login`
+3. On `POST /auth/logout` success → clears all stored tokens and redirects to `/login`
+
+```js
+// Pseudocode — adapt to your HTTP client
+api.interceptors.response.use(
+  response => response,
+  async error => {
+    const original = error.config;
+    if (error.response?.status === 401 && !original._retry
+        && !original.url.includes('/auth/refresh')) {
+      original._retry = true;
+      try {
+        const { data } = await axios.post('/auth/refresh', {
+          refreshToken: getStoredRefreshToken()
+        });
+        storeTokens(data.accessToken, data.refreshToken); // always replace BOTH
+        original.headers['Authorization'] = `Bearer ${data.accessToken}`;
+        return api(original); // retry
+      } catch {
+        clearTokens();
+        redirectToLogin();
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+```
+
+### OAuth2 social login callback page
+
+Create a dedicated frontend route (e.g. `/oauth2/callback`) that:
+
+1. Reads `accessToken` and `refreshToken` from URL query params
+2. Stores both tokens in the same secure location used for email/password login
+3. Clears the query string from the browser URL bar (use `history.replaceState`)
+4. If an `error` query param is present instead, show a user-friendly error message
+5. Redirects the user to the intended page (e.g. home or a stored `returnTo` path)
+
+```js
+// /oauth2/callback page — pseudocode
+const params = new URLSearchParams(window.location.search);
+const accessToken  = params.get('accessToken');
+const refreshToken = params.get('refreshToken');
+const error        = params.get('error');
+
+if (error) {
+  showError(error);
+} else if (accessToken && refreshToken) {
+  storeTokens(accessToken, refreshToken);
+  history.replaceState({}, '', window.location.pathname); // clean URL
+  redirectToHome();
+}
+```

@@ -51,6 +51,7 @@ public class RefreshToken {
      *   <li>Reuse-attack detection (all family tokens revoked)</li>
      * </ul>
      */
+    @Builder.Default
     @Column(nullable = false)
     private boolean isRevoked = false;
 
