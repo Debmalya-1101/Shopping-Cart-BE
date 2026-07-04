@@ -5,7 +5,11 @@ import lombok.Setter;
 
 /**
  * Returned on a successful login.
- * Contains both the short-lived access token and the long-lived refresh token.
+ * Contains the short-lived access token only.
+ *
+ * <p>The long-lived refresh token is no longer returned in the response body.
+ * It is stored securely in an HttpOnly cookie by the server,
+ * making it inaccessible to JavaScript and protected from XSS attacks.
  */
 @Getter
 @Setter
@@ -14,16 +18,9 @@ public class AuthResponse {
     /** Short-lived JWT used to authorize API calls. */
     private String accessToken;
 
-    /**
-     * Long-lived opaque token used to obtain a new access token without re-logging in.
-     * Store this securely (e.g., HttpOnly cookie or secure storage) on the client.
-     */
-    private String refreshToken;
-
     private String tokenType = "Bearer";
 
-    public AuthResponse(String accessToken, String refreshToken) {
+    public AuthResponse(String accessToken) {
         this.accessToken = accessToken;
-        this.refreshToken = refreshToken;
     }
 }

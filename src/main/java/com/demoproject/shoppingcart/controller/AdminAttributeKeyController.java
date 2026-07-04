@@ -12,7 +12,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/admin/attribute-keys")
-@CrossOrigin(origins = "*")
+
 public class AdminAttributeKeyController {
 
     private final AdminAttributeKeyService adminAttributeKeyService;

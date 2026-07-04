@@ -23,38 +23,47 @@ import java.io.IOException;
  * <ol>
  *   <li>Resolving the local {@link AppUser} from the authenticated principal's email.</li>
  *   <li>Issuing a short-lived JWT access token (via {@link JwtUtil}).</li>
- *   <li>Creating a long-lived refresh token (via {@link RefreshTokenService}).</li>
+ *   <li>Creating a long-lived refresh token (via {@link RefreshTokenService}) and
+ *       storing it in a secure HttpOnly cookie (never exposed to JavaScript).</li>
  *   <li>Clearing the OAuth2 state cookie.</li>
  *   <li>Redirecting the browser to the configured frontend callback URL with
- *       both tokens as query parameters.</li>
+ *       only the access token as a query parameter.</li>
  * </ol>
  *
  * <h2>Frontend integration</h2>
- * The browser lands on: {@code <frontendRedirectUri>?accessToken=<jwt>&refreshToken=<opaqueToken>}
- * The frontend should immediately read and securely store both tokens, then clear the URL bar.
+ * The browser lands on: {@code <frontendRedirectUri>?accessToken=<jwt>}
+ * The frontend should immediately read and store the access token, then clear the URL bar.
+ * The refresh token is handled automatically via the HttpOnly cookie.
  */
 @Component
 public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
     private static final Logger log = LoggerFactory.getLogger(OAuth2AuthenticationSuccessHandler.class);
 
+    /** Name of the HttpOnly cookie that carries the refresh token — must match AuthController. */
+    private static final String REFRESH_COOKIE_NAME = "refreshToken";
+    private static final int COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7 days
+
     private final JwtUtil jwtUtil;
     private final RefreshTokenService refreshTokenService;
     private final UserRepository userRepository;
     private final HttpCookieOAuth2AuthorizationRequestRepository cookieRepo;
+    private final boolean isProduction;
 
-    @Value("${app.oauth2.frontend-redirect-uri:http://localhost:3000/oauth2/callback}")
+    @Value("${app.oauth2.frontend-redirect-uri:http://localhost:4200/oauth2/callback}")
     private String frontendRedirectUri;
 
     public OAuth2AuthenticationSuccessHandler(
             JwtUtil jwtUtil,
             RefreshTokenService refreshTokenService,
             UserRepository userRepository,
-            HttpCookieOAuth2AuthorizationRequestRepository cookieRepo) {
+            HttpCookieOAuth2AuthorizationRequestRepository cookieRepo,
+            @Value("${app.production:false}") boolean isProduction) {
         this.jwtUtil = jwtUtil;
         this.refreshTokenService = refreshTokenService;
         this.userRepository = userRepository;
         this.cookieRepo = cookieRepo;
+        this.isProduction = isProduction;
     }
 
     @Override
@@ -81,13 +90,23 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         String accessToken  = jwtUtil.generateToken(appUser.getUserName(), appUser.getRole().name());
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(appUser.getId());
 
+        // Store refresh token in a secure HttpOnly cookie — never in the URL
+        String cookieValue = String.format(
+                "%s=%s; Max-Age=%d; Path=/; HttpOnly; %sSameSite=%s",
+                REFRESH_COOKIE_NAME,
+                refreshToken.getToken(),
+                COOKIE_MAX_AGE_SECONDS,
+                isProduction ? "Secure; " : "",
+                isProduction ? "None" : "Strict"
+        );
+        response.addHeader("Set-Cookie", cookieValue);
+
         // Clean up the OAuth2 state cookie
         cookieRepo.removeAuthorizationRequest(request, response);
 
-        // Build the frontend redirect URL (tokens passed as query params)
+        // Build the frontend redirect URL — only the access token in the query param
         String targetUrl = UriComponentsBuilder.fromUriString(frontendRedirectUri)
                 .queryParam("accessToken", accessToken)
-                .queryParam("refreshToken", refreshToken.getToken())
                 .build().toUriString();
 
         log.info("OAuth2 login successful for '{}' via {}. Redirecting to frontend.",
