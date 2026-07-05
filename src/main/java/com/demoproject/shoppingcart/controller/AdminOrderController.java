@@ -19,7 +19,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/admin/orders")
-@CrossOrigin(origins = "*")
+
 public class AdminOrderController {
 
     private final AdminOrderService adminOrderService;

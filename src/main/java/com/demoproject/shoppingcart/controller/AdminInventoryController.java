@@ -20,7 +20,7 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 
-@CrossOrigin(origins = "*")
+
 @RestController
 @RequestMapping("/api/admin/inventory")
 @PreAuthorize("hasRole('ADMIN')")

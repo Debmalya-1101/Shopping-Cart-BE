@@ -23,7 +23,7 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api/admin/scraper")
-@CrossOrigin(origins = "*")
+
 @Profile("!dev")
 public class FlipkartScraperController {
 

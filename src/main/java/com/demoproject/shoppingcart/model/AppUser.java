@@ -30,12 +30,37 @@ public class AppUser {
 	@Column(nullable = false, unique = true)
 	private String userName;
 
+	/** Bcrypt hash for LOCAL users. OAuth2 users have a random unguessable hash stored here. */
 	@Column(nullable = false)
-	private String password; // Will store hashed password
+	private String password;
 
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
 	private Role role = Role.ROLE_USER; // USER or ADMIN
+
+	// ============================================
+	// OAuth2 / Social Login Fields
+	// ============================================
+
+	/** Which provider was used to authenticate this user. Defaults to LOCAL. */
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false, length = 20)
+	private AuthProvider authProvider = AuthProvider.LOCAL;
+
+	/**
+	 * The unique user identifier from the OAuth2 provider (e.g. Google's {@code sub} claim,
+	 * Facebook's numeric {@code id}). Null for LOCAL users.
+	 */
+	@Column(length = 255)
+	private String providerId;
+
+	/** Profile picture URL provided by the OAuth2 provider. May change on subsequent logins. */
+	@Column(length = 1024)
+	private String avatarUrl;
+
+	/** Full display name from the OAuth2 provider (e.g. "John Doe"). */
+	@Column(length = 255)
+	private String displayName;
 
 	// ============================================
 	// Relationships (Ownership + Security Control)

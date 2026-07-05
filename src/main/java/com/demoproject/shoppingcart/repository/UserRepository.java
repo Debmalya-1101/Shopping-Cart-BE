@@ -1,6 +1,7 @@
 package com.demoproject.shoppingcart.repository;
 
 import com.demoproject.shoppingcart.model.AppUser;
+import com.demoproject.shoppingcart.model.AuthProvider;
 import com.demoproject.shoppingcart.model.Role;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -17,6 +18,12 @@ public interface UserRepository extends JpaRepository<AppUser, Long> {
 
     // Count users excluding admins
     long countByRoleNot(Role role);
+
+    /**
+     * Looks up a user by their provider-issued ID and the provider name.
+     * Used during OAuth2 login to find an existing linked account.
+     */
+    Optional<AppUser> findByProviderIdAndAuthProvider(String providerId, AuthProvider authProvider);
 }
 
 
