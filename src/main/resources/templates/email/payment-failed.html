@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Payment Failed</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;600;700&display=swap');
+        body { font-family: 'Inter', Arial, sans-serif; line-height: 1.6; color: #5a473d; background-color: #f6e7db; margin: 0; padding: 40px 20px; }
+        h1, h2, h3, h4, h5, h6 { font-family: 'Outfit', sans-serif; color: #2d241f; margin-top: 0; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #fffaf5; border-radius: 12px; overflow: hidden; box-shadow: 0 18px 45px rgba(80, 54, 36, 0.08); border: 1px solid rgba(87, 61, 44, 0.15); }
+        .header { padding: 30px 40px; border-bottom: 1px solid rgba(87, 61, 44, 0.15); text-align: center; }
+        .content { padding: 40px; }
+        .content h2 { font-size: 22px; font-weight: 600; margin-bottom: 20px; color: #a14634; }
+        .info-box { background-color: #f6e4df; border-left: 4px solid #a14634; border-radius: 8px; padding: 20px; margin: 25px 0; color: #2d241f; }
+        .info-box p { margin: 8px 0; }
+        .btn { display: inline-block; padding: 14px 32px; background-color: #b55f34; color: #ffffff !important; text-decoration: none; border-radius: 8px; font-weight: 500; font-family: 'Outfit', sans-serif; text-align: center; margin-top: 15px; transition: background-color 0.2s; box-shadow: 0 10px 24px rgba(181, 95, 52, 0.2); }
+        .btn:hover { background-color: #9e522c; }
+        .footer { padding: 25px 40px; background-color: #f3e9df; text-align: center; font-size: 13px; color: #6e5d52; border-top: 1px solid rgba(87, 61, 44, 0.15); }
+        .footer a { color: #9e522c; text-decoration: none; font-weight: 500; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <img th:src="|${frontendUrl}/logo.png|" alt="Nexis" style="max-height: 45px; display: block; margin: 0 auto;">
+    </div>
+    <div class="content">
+        <h2>Action Required: Payment Failed</h2>
+        <p>Hi there,</p>
+        <p>Unfortunately, the payment for your order <strong>#<span th:text="${orderId}"></span></strong> could not be processed successfully.</p>
+        
+        <div class="info-box">
+            <p><strong>Attempt <span th:text="${retryCount}"></span> of <span th:text="${maxRetries}"></span></strong></p>
+            <p>Your order is currently placed on hold. Please update your payment method or retry the transaction so we can fulfill your order.</p>
+        </div>
+        
+        <p>If you reach the maximum number of retry attempts without a successful payment, your order will automatically be cancelled.</p>
+        
+        <p style="text-align: center; margin-top: 35px;">
+            <a th:href="|${frontendUrl}/orders/${orderId}|" class="btn">Retry Payment Now</a>
+        </p>
+    </div>
+    <div class="footer">
+        <p>If you're having trouble completing your purchase, please contact our <a href="#">Support Team</a>.</p>
+        <p>&copy; 2026 Nexis. All rights reserved.</p>
+    </div>
+</div>
+</body>
+</html>

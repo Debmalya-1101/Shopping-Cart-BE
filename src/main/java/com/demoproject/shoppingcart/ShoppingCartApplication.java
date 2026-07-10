@@ -9,12 +9,15 @@ import org.springframework.retry.annotation.EnableRetry;
 
 import org.springframework.scheduling.annotation.EnableScheduling;
 
+import org.springframework.scheduling.annotation.EnableAsync;
+
 @SpringBootApplication
 @EnableJpaAuditing(auditorAwareRef = "auditorAwareImpl")
-@EntityScan("com.demoproject.shoppingcart.model")
-@EnableJpaRepositories("com.demoproject.shoppingcart.repository")
+@EntityScan(basePackages = {"com.demoproject.shoppingcart.model", "com.demoproject.shoppingcart.notification.entity"})
+@EnableJpaRepositories(basePackages = {"com.demoproject.shoppingcart.repository", "com.demoproject.shoppingcart.notification.repository"})
 @EnableRetry
 @EnableScheduling
+@EnableAsync
 public class ShoppingCartApplication {
 
 	public static void main(String[] args) {

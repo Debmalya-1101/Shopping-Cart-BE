@@ -23,6 +23,13 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     List<Order> findByStatusAndPaymentStatusAndUpdatedAtBefore(OrderStatus status, PaymentStatus paymentStatus, java.time.LocalDateTime time);
 
+    /**
+     * Used by OrderCleanupTask to find stale PENDING_PAYMENT orders for auto-cancellation.
+     * Matches orders still in PENDING_PAYMENT (regardless of paymentStatus sub-state).
+     */
+    List<Order> findByStatusAndCreatedAtBefore(OrderStatus status, java.time.LocalDateTime time);
+
+
     // Check if user has a successful payment order containing this product
     @Query("SELECT CASE WHEN COUNT(o) > 0 THEN true ELSE false END " +
            "FROM Order o JOIN o.items oi JOIN oi.product p " +

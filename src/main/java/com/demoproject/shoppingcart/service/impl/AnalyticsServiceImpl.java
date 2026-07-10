@@ -8,6 +8,8 @@ import com.demoproject.shoppingcart.model.OrderStatus;
 import com.demoproject.shoppingcart.model.Role;
 import com.demoproject.shoppingcart.repository.OrderRepository;
 import com.demoproject.shoppingcart.repository.UserRepository;
+import com.demoproject.shoppingcart.notification.repository.NotificationRepository;
+import com.demoproject.shoppingcart.notification.model.NotificationStatus;
 import com.demoproject.shoppingcart.service.AnalyticsService;
 import org.springframework.stereotype.Service;
 
@@ -21,10 +23,12 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
+    private final NotificationRepository notificationRepository;
 
-    public AnalyticsServiceImpl(OrderRepository orderRepository, UserRepository userRepository) {
+    public AnalyticsServiceImpl(OrderRepository orderRepository, UserRepository userRepository, NotificationRepository notificationRepository) {
         this.orderRepository = orderRepository;
         this.userRepository = userRepository;
+        this.notificationRepository = notificationRepository;
     }
 
     @Override
@@ -42,6 +46,12 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         // Total revenue
         Long totalRevenue = orderRepository.totalRevenue();
         analytics.setTotalRevenue(totalRevenue);
+
+        // Notification metrics
+        Long totalEmailsSent = notificationRepository.countByStatus(NotificationStatus.SENT);
+        Long totalEmailsFailed = notificationRepository.countByStatus(NotificationStatus.FAILED);
+        analytics.setTotalEmailsSent(totalEmailsSent);
+        analytics.setTotalEmailsFailed(totalEmailsFailed);
 
         // Orders by status
         List<OrderStatusCountDTO> ordersByStatus = getOrdersByStatus();

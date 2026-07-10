@@ -31,6 +31,11 @@ public class OrderDetailDTO {
     private Long phoneNo;
     private String address;
 
+    // ── Delivery Partner Information ──────────────────────────────────────────
+    private Long deliveryPartnerId;
+    private String deliveryPartnerName;
+    private String deliveryPartnerPhone;
+
     // ── Order Items ───────────────────────────────────────────────────────────
     private List<OrderDetailItemDTO> items;
 

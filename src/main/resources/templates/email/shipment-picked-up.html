@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Your Order Has Shipped</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;600;700&display=swap');
+        body { font-family: 'Inter', Arial, sans-serif; line-height: 1.6; color: #5a473d; background-color: #f6e7db; margin: 0; padding: 40px 20px; }
+        h1, h2, h3, h4, h5, h6 { font-family: 'Outfit', sans-serif; color: #2d241f; margin-top: 0; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #fffaf5; border-radius: 12px; overflow: hidden; box-shadow: 0 18px 45px rgba(80, 54, 36, 0.08); border: 1px solid rgba(87, 61, 44, 0.15); }
+        .header { padding: 30px 40px; border-bottom: 1px solid rgba(87, 61, 44, 0.15); text-align: center; }
+        .content { padding: 40px; }
+        .content h2 { font-size: 22px; font-weight: 600; margin-bottom: 20px; color: #b55f34; }
+        .info-box { background-color: rgba(181, 95, 52, 0.05); border-radius: 8px; padding: 20px; margin: 25px 0; border: 1px solid rgba(181, 95, 52, 0.15); }
+        .info-box p { margin: 8px 0; }
+        .btn { display: inline-block; padding: 14px 32px; background-color: #b55f34; color: #ffffff !important; text-decoration: none; border-radius: 8px; font-weight: 500; font-family: 'Outfit', sans-serif; text-align: center; margin-top: 15px; transition: background-color 0.2s; box-shadow: 0 10px 24px rgba(181, 95, 52, 0.2); }
+        .btn:hover { background-color: #9e522c; }
+        .footer { padding: 25px 40px; background-color: #f3e9df; text-align: center; font-size: 13px; color: #6e5d52; border-top: 1px solid rgba(87, 61, 44, 0.15); }
+        .footer a { color: #9e522c; text-decoration: none; font-weight: 500; }
+        .tracking { font-family: 'Courier New', Courier, monospace; font-size: 18px; font-weight: 600; color: #b55f34; background: #fffaf5; padding: 5px 10px; border-radius: 4px; display: inline-block; margin-top: 5px;}
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <img th:src="|${frontendUrl}/logo.png|" alt="Nexis" style="max-height: 45px; display: block; margin: 0 auto;">
+    </div>
+    <div class="content">
+        <h2>Your Order is on its Way! 📦</h2>
+        <p>Hi there,</p>
+        <p>Your order <strong>#<span th:text="${orderId}"></span></strong> has been packed and picked up by our delivery partner. It is now on its way to you!</p>
+        
+        <div class="info-box">
+            <p><strong>Tracking Details:</strong></p>
+            <p>Tracking Number: <br><span class="tracking" th:text="${trackingNumber}"></span></p>
+            <p style="margin-top: 15px; font-size: 0.9em; color: #6e5d52;">Picked up at: <span th:text="${#temporals.format(pickedUpAt, 'MMM dd, yyyy HH:mm')}"></span></p>
+        </div>
+        
+        <p>You can track the progress of your shipment directly from your dashboard.</p>
+        
+        <p style="text-align: center; margin-top: 35px;">
+            <a th:href="|${frontendUrl}/orders/${orderId}|" class="btn">Track Shipment</a>
+        </p>
+    </div>
+    <div class="footer">
+        <p>Need help? Visit our <a href="#">Help Center</a>.</p>
+        <p>&copy; 2026 Nexis. All rights reserved.</p>
+    </div>
+</div>
+</body>
+</html>

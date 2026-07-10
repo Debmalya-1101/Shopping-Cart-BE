@@ -42,7 +42,7 @@ public class Order {
 	private String address;
 
 	@Enumerated(EnumType.STRING)
-	private OrderStatus status = OrderStatus.PLACED;
+	private OrderStatus status = OrderStatus.PENDING_PAYMENT;
 	@Enumerated(EnumType.STRING)
 	private PaymentStatus paymentStatus = PaymentStatus.INITIATED;
 
@@ -51,6 +51,12 @@ public class Order {
 	private LocalDateTime paymentInitiatedAt; // When payment was initiated
 	private LocalDateTime paymentCompletedAt; // When payment was completed
 	private Integer retryCount = 0; // Number of retry attempts for payment
+
+	/**
+	 * Populated when an admin cancels a CONFIRMED (paid) order.
+	 * The reason is shared with the customer as part of the cancellation notification.
+	 */
+	private String adminCancelReason;
 
 	public void addItem(OrderItem item) {
 		items.add(item);
