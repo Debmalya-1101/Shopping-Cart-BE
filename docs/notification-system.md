@@ -41,13 +41,13 @@ Our notification system follows an event-driven, decoupled architecture.
           ├─► Checks Idempotency & Saves Notification Entity
           │
           ▼
- Provider Registry
+  Provider Registry
           │
           ▼
  Email Notification Provider
           │
           ▼
-     SMTP Server
+    Gmail REST API (HTTPS)
 ```
 
 **Step-by-step:**
@@ -55,7 +55,7 @@ Our notification system follows an event-driven, decoupled architecture.
 2. The `NotificationEventListener` intercepts the event *only after* the transaction commits successfully.
 3. The listener builds a `NotificationRequest` and passes it to the `NotificationService`.
 4. The service generates an idempotency key, saves the notification to the database, and looks up the correct provider (Email) from the `ProviderRegistry`.
-5. The provider processes the template and sends the email via SMTP.
+5. The provider processes the template, builds a MIME payload, and sends the email via the Gmail REST API over HTTPS.
 
 ---
 
@@ -135,14 +135,14 @@ provider.send(request, notification);
 
 ### `NotificationProvider` & `EmailNotificationProvider`
 **Purpose**: Abstracts the actual sending mechanism.
-**Responsibilities**: Implementations define *how* a notification is sent. `EmailNotificationProvider` processes Thymeleaf templates and uses `JavaMailSender`.
+**Responsibilities**: Implementations define *how* a notification is sent. `EmailNotificationProvider` processes Thymeleaf templates and uses the Google API Client to send over HTTPS (bypassing restricted SMTP ports).
 ```java
 // Snippet from EmailNotificationProvider
 String templateName = templateResolver.resolve(request.getType(), request.getChannel());
 Context context = new Context();
 context.setVariables(request.getPayload());
 String htmlBody = templateEngine.process(templateName, context);
-// Send via JavaMailSender...
+// Build MimeMessage and send via Gmail Service...
 ```
 
 ### `NotificationProviderRegistry`
@@ -164,7 +164,7 @@ String htmlBody = templateEngine.process(templateName, context);
 5. **Notification Entity Saved**: `NotificationService` generates an idempotency key and saves a `PENDING` notification in the DB.
 6. **Provider Registry**: The service asks the registry for the `EMAIL` provider.
 7. **Email Provider**: Uses `TemplateResolver` to find the Thymeleaf template, injects the payload, and creates a MimeMessage.
-8. **Email Sent**: The SMTP server dispatches the email.
+8. **Email Sent**: The Gmail REST API dispatches the email via standard HTTPS.
 9. **Notification Status Updated**: If successful, status becomes `SENT`. If it throws an exception, the `handleFailure` method catches it, logs it, increments `retryCount`, and marks it as `FAILED`.
 
 ---
@@ -203,7 +203,7 @@ The email might send, but then the transaction could fail a millisecond later. T
 Sending an email over the network takes time (often 500ms - 2s). 
 
 ### Difference
-- **Synchronous**: The user clicks "Checkout" and waits looking at a loading spinner while the backend connects to the SMTP server to send the email.
+- **Synchronous**: The user clicks "Checkout" and waits looking at a loading spinner while the backend connects to the Gmail API to send the email.
 - **Asynchronous**: The user clicks "Checkout", the backend saves the order, returns a "Success" response instantly, and a background thread handles the email.
 
 By tagging our listener with `@Async`, the HTTP response is returned immediately to the frontend.
@@ -274,7 +274,7 @@ Before processing, we check the database for this key. If it exists, we silently
 ### Why store history?
 We persist every notification request as an Entity before attempting to send it.
 - **Audit**: Customer service can verify if/when a user was emailed.
-- **Troubleshooting**: We store the exact `failure_reason` (stack trace) in the DB if the SMTP server rejects it.
+- **Troubleshooting**: We store the exact `failure_reason` (stack trace) in the DB if the Gmail API rejects it (e.g., auth failure).
 - **Metrics**: Allows us to query success/failure rates.
 
 ---
@@ -307,7 +307,7 @@ This ensures every log line generated during this email process shares the same 
 ### Micrometer
 We inject `MeterRegistry` to track operational health.
 - **Counters**: `meterRegistry.counter("notifications.sent").increment();` tracks totals.
-- **Timers**: `Timer.Sample sample = Timer.start(meterRegistry);` tracks exactly how many milliseconds the SMTP provider takes to respond.
+- **Timers**: `Timer.Sample sample = Timer.start(meterRegistry);` tracks exactly how many milliseconds the Gmail API takes to respond.
 
 These metrics automatically expose themselves to the `/actuator/prometheus` endpoint, which tools like Grafana scrape to build real-time monitoring dashboards.
 
@@ -325,22 +325,21 @@ When rendering, we pass a `Context` containing variables (like `totalAmount`, `o
 
 Located in `application.properties`:
 ```properties
-# ── Mail Configuration ───────────────────────────────────────────────────────
-spring.mail.host=${SMTP_HOST:smtp.gmail.com}
-spring.mail.port=${SMTP_PORT:587}
-spring.mail.username=${SMTP_USERNAME}
-spring.mail.password=${SMTP_PASSWORD}
-spring.mail.properties.mail.smtp.auth=true
-spring.mail.properties.mail.smtp.starttls.enable=true
+# ── Gmail REST API (OAuth2) Configuration ────────────────────────────────────
+gmail.oauth2.client-id=${GMAIL_CLIENT_ID}
+gmail.oauth2.client-secret=${GMAIL_CLIENT_SECRET}
+gmail.oauth2.refresh-token=${GMAIL_REFRESH_TOKEN}
+gmail.oauth2.sender-email=nexis.store.vercel@gmail.com
 ```
-We use environment variables (`${SMTP_PASSWORD}`) so that raw credentials are never committed to the GitHub repository, maintaining strict security standards.
+We use environment variables (`${GMAIL_CLIENT_SECRET}`) so that raw credentials are never committed to the GitHub repository, maintaining strict security standards. 
+Additionally, we use the Gmail REST API (HTTPS) instead of traditional SMTP because many cloud platforms (like Render) block outbound SMTP traffic (ports 25, 465, 587) on their free tiers to prevent spam.
 
 ---
 
 ## 20. Sequence Diagram
 
 ```text
-User           OrderService       NotificationListener       NotificationService        ProviderRegistry          EmailProvider             SMTP
+User           OrderService       NotificationListener       NotificationService        ProviderRegistry          EmailProvider             GmailAPI
  │                  │                      │                          │                         │                       │                     │
  │─Place Order─────►│                      │                          │                         │                       │                     │
  │                  │─Publish Event───────►│                          │                         │                       │                     │
@@ -352,7 +351,7 @@ User           OrderService       NotificationListener       NotificationService
  │                  │                      │                          │◄─Return EmailProvider───│                       │                     │
  │                  │                      │                          │─send(request, entity)──────────────────────────►│                     │
  │                  │                      │                          │                         │                       │─Parse Template      │
- │                  │                      │                          │                         │                       │─Send MimeMessage───►│
+ │                  │                      │                          │                         │                       │─Send Payload───────►│
  │                  │                      │                          │                         │                       │◄─Success Response───│
  │                  │                      │                          │◄─Update Status to SENT──────────────────────────│                     │
 ```
@@ -397,16 +396,16 @@ User           OrderService       NotificationListener       NotificationService
    *Answer*: We use Micrometer's `Timer.Sample` to wrap the `provider.send()` execution, exposing the exact latency metrics to Prometheus/Grafana.
 8. **What is the Strategy Pattern and where is it used here?**
    *Answer*: The Strategy Pattern enables selecting an algorithm at runtime. We use it via the `NotificationProvider` interface; the `NotificationService` dynamically chooses the `EmailNotificationProvider` strategy based on the channel.
-9. **If the SMTP server is down, what happens?**
+9. **If the Gmail API is down, what happens?**
    *Answer*: The provider throws an exception. `handleFailure` catches it, records the stack trace in `failureReason`, increments the `retryCount`, and updates the status to `FAILED`.
-10. **Why avoid calling `JavaMailSender` directly inside `OrderService`?**
+10. **Why avoid calling the email API directly inside `OrderService`?**
     *Answer*: Tight coupling. It mixes business logic with infrastructure logic, makes testing harder, and reduces the resiliency of the checkout flow.
 11. **What is a Correlation ID?**
     *Answer*: A unique identifier (UUID) generated at the origin of a request and passed along to all downstream systems and logs to track the full lifecycle of an action.
 12. **How does the TemplateResolver avoid hardcoded strings?**
     *Answer*: It uses naming conventions derived from the enums (e.g., `NotificationType.ORDER_PLACED` becomes `order-placed`), automatically mapping domain events to filesystem paths.
-13. **Why are SMTP credentials stored as `${SMTP_PASSWORD}` in properties?**
-    *Answer*: To inject them via environment variables, preventing raw passwords from being committed to source control.
+13. **Why do we use the Gmail REST API instead of standard SMTP?**
+    *Answer*: Because cloud hosting providers (like Render, Heroku) frequently block outbound traffic on SMTP ports (25, 465, 587) on free tiers to prevent spam. The REST API runs over standard HTTPS (port 443) and is never blocked.
 14. **What is the purpose of the `metadata` column in the database?**
     *Answer*: It stores a JSON payload containing tracing information (correlation IDs, trace IDs, source services) to assist in debugging.
 15. **If two threads try to insert the exact same notification simultaneously, what happens?**

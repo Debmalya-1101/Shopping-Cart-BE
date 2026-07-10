@@ -1,7 +1,6 @@
 package com.demoproject.shoppingcart.notification.util;
 
-import org.springframework.mail.MailAuthenticationException;
-import org.springframework.mail.MailParseException;
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import org.springframework.stereotype.Component;
 
 import java.net.ConnectException;
@@ -25,8 +24,8 @@ public class NotificationExceptionClassifier {
         Throwable rootCause = getRootCause(ex);
 
         // Terminal errors: Authentication failures, parse errors, template issues
-        if (rootCause instanceof MailAuthenticationException ||
-            rootCause instanceof MailParseException ||
+        if ((rootCause instanceof GoogleJsonResponseException && ((GoogleJsonResponseException) rootCause).getStatusCode() == 401) ||
+            rootCause instanceof jakarta.mail.internet.AddressException ||
             rootCause instanceof IllegalArgumentException ||
             rootCause instanceof org.thymeleaf.exceptions.TemplateEngineException) {
             return false;
@@ -35,7 +34,7 @@ public class NotificationExceptionClassifier {
         // Transient errors: Timeouts, connection issues
         if (rootCause instanceof SocketTimeoutException ||
             rootCause instanceof ConnectException ||
-            rootCause instanceof org.springframework.mail.MailSendException) {
+            (rootCause instanceof GoogleJsonResponseException && ((GoogleJsonResponseException) rootCause).getStatusCode() >= 500)) {
             return true;
         }
 
