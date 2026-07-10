@@ -18,6 +18,7 @@ import java.time.LocalDateTime;
 public class PaymentSuccessEvent {
     private Long orderId;
     private Long userId;
+    private String userEmail;
     private String paymentReferenceId;
     private Long amount;
     private LocalDateTime paymentCompletedAt;

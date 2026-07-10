@@ -16,6 +16,7 @@ public interface ShipmentRepository extends JpaRepository<Shipment, Long> {
     Optional<Shipment> findByTrackingNumber(String trackingNumber);
     List<Shipment> findByDeliveryPartnerId(Long deliveryPartnerId);
     List<Shipment> findByStatus(ShipmentStatus status);
+    List<Shipment> findByStatusIn(List<ShipmentStatus> statuses);
     List<Shipment> findByDeliveryPartnerIdAndStatusIn(Long partnerId, List<ShipmentStatus> statuses);
 
     @Query("SELECT s.status, COUNT(s) FROM Shipment s WHERE s.deliveryPartner.id = :partnerId GROUP BY s.status")

@@ -20,8 +20,11 @@ public class AdminOrderResponseDTO {
 
     private Long total;
     private String status;
+    private String paymentStatus;
     private LocalDateTime createdAt;
+
+    /** Populated when admin cancels a confirmed (paid) order. */
+    private String adminCancelReason;
 
     private List<OrderItemDTO> items;
 }
-

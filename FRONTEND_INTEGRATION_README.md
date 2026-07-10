@@ -243,19 +243,27 @@ Provides capability to scrape and seed products directly from Amazon India (amaz
 |---|---|---|---|---|
 | GET | `/api/admin/orders` | Admin Bearer | Query params | `Page<AdminOrderResponseDTO>` |
 | GET | `/api/admin/orders/{orderId}` | Admin Bearer | Path param | `AdminOrderResponseDTO` |
-| PUT | `/api/admin/orders/{orderId}/status` | Admin Bearer | `UpdateOrderStatusRequest` | `AdminOrderResponseDTO` |
+| POST | `/api/admin/orders/{orderId}/cancel` | Admin Bearer | `AdminCancelOrderRequest` | `AdminOrderResponseDTO` |
+| POST | `/api/admin/orders/{orderId}/items/return` | Admin Bearer | `OrderItemReturnRequestDTO` | `OrderResponseDTO` |
 
 Supported admin order query params:
 
-- `status` optional enum: `PLACED`, `SHIPPED`, `DELIVERED`, `CANCELLED`
+- `status` optional enum — any value from the `OrderStatus` enum (see [Enum Reference](#enum-reference) section)
 - Spring pageable params such as `page`, `size`, `sort`
 - Default pageable: `size=20`, `sort=createdAt,DESC`
+
 
 ### Admin Analytics
 
 | Method | Path | Auth | Request | Response |
 |---|---|---|---|
 | GET | `/api/admin/analytics/dashboard` | Admin Bearer | None | `DashboardAnalyticsDTO` |
+
+### Admin Notifications
+
+| Method | Path | Auth | Request | Response |
+|---|---|---|---|---|
+| GET | `/api/admin/notifications/logs` | Admin Bearer | `?page=&size=&status=` (optional) | `PageResponse<NotificationLogDTO>` |
 
 ### Admin Categories
 
@@ -331,6 +339,34 @@ Used to build the attributes section of the product add/edit form.
 | GET | `/api/delivery-partner/feedback/summary` | DP Bearer | None | `DeliveryPartnerRatingSummaryDTO` |
 | GET | `/api/admin/delivery-partners/{id}/feedback` | Admin Bearer | Path param | `List<AdminDeliveryFeedbackResponseDTO>` |
 | GET | `/api/admin/delivery-partners/ratings` | Admin Bearer | None | `List<DeliveryPartnerRatingSummaryDTO>` |
+
+## Email Notifications (Backend Driven)
+
+The backend features an event-driven Notification System. This is completely transparent to the frontend — **no new API calls are required** to trigger emails.
+
+Events are published at each major lifecycle milestone. Future notification listeners will send emails/push notifications based on these events:
+
+| Event | Fired When | Who Gets Notified |
+|---|---|---|
+| `OrderPlacedEvent` | Checkout succeeds (payment pending) | User |
+| `PaymentSuccessEvent` | Payment verified by Razorpay | User |
+| `PaymentFailedEvent` 🆕 | Payment attempt fails (retry count included) | User |
+| `OrderConfirmedEvent` 🆕 | Payment success + shipment created | User (tracking number + ETA) |
+| `OrderCancelledEvent` 🆕 | User or admin cancels order | User (admin cancel: apology + refund notice) |
+| `ShipmentCreatedEvent` 🆕 | Shipment record created after payment | Admin/Fulfillment team |
+| `ShipmentAssignedEvent` 🆕 | Admin assigns delivery partner | Delivery Partner (new job alert) |
+| `ShipmentPickedUpEvent` 🆕 | Partner marks parcel picked up | User ("your order is on its way!") |
+| `ShipmentOutForDeliveryEvent` 🆕 | Partner starts last-mile delivery | User ("arriving today!") |
+| `OrderDeliveredEvent` 🆕 | Partner confirms delivery | User (confirmation + review prompt) |
+| `DeliveryFailedEvent` 🆕 | Partner marks delivery failed | User + Admin |
+| `ReturnRequestedEvent` 🆕 | User requests item return (future) | Admin |
+| `ReturnApprovedEvent` 🆕 | Admin approves return (future) | User |
+| `ReturnRejectedEvent` 🆕 | Admin rejects return (future) | User |
+
+> [!NOTE]
+> For local testing, ensure the backend is running with valid SMTP credentials injected via environment variables (`SMTP_HOST`, `SMTP_USERNAME`, `SMTP_PASSWORD`). Email failures are logged but do not fail the main request.
+
+
 
 ## Request DTOs
 
@@ -863,8 +899,8 @@ Returned by `POST /api/orders/checkout` and `GET /api/orders` (list view). Inten
 {
   "orderId": 1,
   "total": 2000,
-  "status": "PLACED",
-  "paymentStatus": "COMPLETED",
+  "status": "PENDING_PAYMENT",
+  "paymentStatus": "INITIATED",
   "deliveryStatus": "PENDING",
   "createdAt": "2026-05-11T12:00:00",
   "items": [
@@ -896,6 +932,9 @@ Returned **only** by `GET /api/orders/{orderId}`. Provides everything needed to 
   "email": "riya@example.com",
   "phoneNo": 9876543210,
   "address": "12B, MG Road, Bengaluru, Karnataka 560001",
+  "deliveryPartnerId": 105,
+  "deliveryPartnerName": "Arjun Kumar",
+  "deliveryPartnerPhone": "9876500123",
   "items": [
     {
       "productId": 7,
@@ -922,8 +961,8 @@ Returned **only** by `GET /api/orders/{orderId}`. Provides everything needed to 
 ```
 
 **Notes:**
-- `orderStatus` is one of: `PLACED`, `SHIPPED`, `DELIVERED`, `CANCELLED`
-- `paymentStatus` is one of: `INITIATED`, `COMPLETED`, `FAILED`
+- `orderStatus` is one of: `PENDING_PAYMENT`, `PAYMENT_FAILED`, `CONFIRMED`, `PROCESSING`, `SHIPPED`, `OUT_FOR_DELIVERY`, `DELIVERED`, `DELIVERY_FAILED`, `CANCELLED`, `RETURNED`
+- `paymentStatus` is one of: `INITIATED`, `SUCCESS`, `FAILED`, `SUCCESS_REQUIRES_REFUND`, `REFUNDED`
 - `categoryName` on each item is `null` if the product has no category assigned
 - `price` on each item is the **snapshot price captured at checkout**, not the current product price
 - `grandTotal` equals `totalAmount`; both are included for frontend convenience
@@ -1035,6 +1074,8 @@ The `attributes` array includes `keyName` so the frontend edit form can display 
   "totalUsers": 0,
   "totalOrders": 0,
   "totalRevenue": 0,
+  "totalEmailsSent": 0,
+  "totalEmailsFailed": 0,
   "ordersByStatus": [
     {
       "status": "PLACED",
@@ -1200,14 +1241,37 @@ The `attributes` array includes `keyName` so the frontend edit form can display 
 - `REJECTED`: Admin rejected. Login blocked.
 - `SUSPENDED`: Admin suspended. Login blocked.
 
+### `OrderStatus`
+
+The full lifecycle of an order — what the user sees:
+
+| Value | User-Facing Label | Description |
+|---|---|---|
+| `PENDING_PAYMENT` | "Awaiting Payment" | Order created; payment not yet completed |
+| `PAYMENT_FAILED` | "Payment Failed" | Payment attempt failed; user may retry (max 3×) |
+| `CONFIRMED` | "Order Confirmed" | Payment succeeded; shipment being prepared |
+| `PROCESSING` | "Being Prepared" | Delivery partner assigned; parcel being picked up |
+| `SHIPPED` | "Shipped" | Parcel picked up and in transit |
+| `OUT_FOR_DELIVERY` | "Out for Delivery" | Delivery partner is en route to customer |
+| `DELIVERED` | "Delivered ✅" | Successfully delivered |
+| `DELIVERY_FAILED` | "Delivery Failed" | Last-mile delivery attempt failed |
+| `CANCELLED` | "Cancelled" | Cancelled by user (pre-PROCESSING) or admin (CONFIRMED only) |
+| `RETURNED` | "Returned" | Parcel returned to warehouse |
+
+> **Cancellation rules:**
+> - User can cancel from `PENDING_PAYMENT` (no refund) or `CONFIRMED` (refund triggered)
+> - Admin can cancel from `CONFIRMED` only (requires non-empty reason; refund triggered)
+> - `PENDING_PAYMENT` orders auto-expire after 30 minutes
+
 ### `ShipmentStatus`
-- `CREATED`: Initial state (unassigned).
-- `ASSIGNED`: Assigned to a delivery partner.
-- `PICKED_UP`: Partner picked up the shipment.
-- `OUT_FOR_DELIVERY`: Shipment is on the way to the customer.
-- `DELIVERED`: Successfully delivered.
-- `FAILED`: Delivery attempt failed.
-- `RETURNED`: Shipment returned to warehouse.
+- `CREATED`: Initial state (unassigned to a partner).
+- `ASSIGNED`: Assigned to a delivery partner. Order becomes `PROCESSING`.
+- `PICKED_UP`: Partner picked up the shipment. Order becomes `SHIPPED`.
+- `OUT_FOR_DELIVERY`: Shipment is on the way to the customer. Order becomes `OUT_FOR_DELIVERY`.
+- `DELIVERED`: Successfully delivered. Order becomes `DELIVERED`. ✅ Terminal state.
+- `DELIVERY_FAILED`: Delivery attempt failed (renamed from `FAILED`). Order becomes `DELIVERY_FAILED`.
+- `RETURNED`: Shipment returned to warehouse. Order becomes `RETURNED`. ✅ Terminal state.
+
 
 ### `VehicleType`
 - `BIKE`
@@ -1268,22 +1332,33 @@ The `attributes` array includes `keyName` so the frontend edit form can display 
 - Cart and wishlist item modification is ownership-checked
 - Payment initiation/confirmation is ownership-checked
 - Payment cannot be re-completed after success
-- Payment failure increments retry count
-- Admin order status rules:
-  - final states `DELIVERED` and `CANCELLED` cannot change
-  - `PLACED -> DELIVERED` is rejected; it must be shipped first
-- Delivery partner login fails with `403 Forbidden` if status is `PENDING`, `REJECTED`, or `SUSPENDED`.
-- Delivery partners can only access and update shipments assigned to them.
-- Shipment status transitions are strictly enforced:
-  - Admin: `CREATED` -> `ASSIGNED`
-  - Partner: `ASSIGNED` -> `PICKED_UP` -> `OUT_FOR_DELIVERY` -> `DELIVERED` | `FAILED`
-  - Admin Reassignment: `ASSIGNED` or `FAILED` -> `ASSIGNED` (to a new partner)
-  - Admin: `FAILED` -> `RETURNED`
-- `FAILED` shipments must include a `failureReason` when updated by a partner.
-- Order status is automatically synced when shipment reaches `OUT_FOR_DELIVERY` (to `SHIPPED`), `DELIVERED`, or `RETURNED`. `FAILED` shipment does not change order status.
-- Customers can only submit delivery feedback for `DELIVERED` shipments.
-- Delivery feedback is limited to one per order (duplicate check).
-- Delivery partners view an anonymized version of their feedback (no customer info). Admins view full details.
+- Payment failure increments retry count; max 3 retries then order must be recreated
+- **Order status rules (new state machine):**
+  - Order starts at `PENDING_PAYMENT` on checkout
+  - Moves to `CONFIRMED` only after successful payment verification
+  - User can cancel from `PENDING_PAYMENT` (no refund) or `CONFIRMED` (refund triggered)
+  - Admin can cancel from `CONFIRMED` only — requires a non-empty reason via `AdminCancelOrderRequest`
+  - Admin cancel of `CONFIRMED` order sets `PaymentStatus → SUCCESS_REQUIRES_REFUND`
+  - `PENDING_PAYMENT` orders auto-expire and are cancelled after 30 minutes
+- **Shipment → Order status sync (fully automated — no admin action needed):**
+  - `ASSIGNED` → Order becomes `PROCESSING`
+  - `PICKED_UP` → Order becomes `SHIPPED`
+  - `OUT_FOR_DELIVERY` → Order becomes `OUT_FOR_DELIVERY`
+  - `DELIVERED` → Order becomes `DELIVERED`
+  - `DELIVERY_FAILED` → Order becomes `DELIVERY_FAILED`
+  - `RETURNED` → Order becomes `RETURNED`
+- Delivery partner login fails with `403 Forbidden` if status is `PENDING`, `REJECTED`, or `SUSPENDED`
+- Delivery partners can only access and update shipments assigned to them
+- **Shipment status transitions (strictly enforced):**
+  - Admin: `CREATED` → `ASSIGNED` (via assign endpoint)
+  - Partner: `ASSIGNED` → `PICKED_UP` → `OUT_FOR_DELIVERY` → `DELIVERED` | `DELIVERY_FAILED`
+  - Admin reassignment: `ASSIGNED` or `DELIVERY_FAILED` → `ASSIGNED` (to a new or different partner)
+  - Admin: `DELIVERY_FAILED` → `RETURNED`
+- `DELIVERY_FAILED` shipments must include a `failureReason` when reported by partner
+- Customers can only submit delivery feedback for `DELIVERED` shipments
+- Delivery feedback is limited to one per order (duplicate check)
+- Delivery partners view an anonymized version of their feedback (no customer info); Admins view full details
+
 
 ## Error Response Structure
 
@@ -1327,6 +1402,25 @@ Used by `GlobalExceptionHandler` for:
 - Use `role === "ROLE_ADMIN"` to gate admin UI
 - Treat product/order status values as backend enums and avoid hardcoding alternate spellings
 - For reviews, do not show write UI unless the user has purchased the product, or be ready to surface the backend rejection message
+
+### `NotificationLogDTO`
+
+```json
+{
+  "id": 1,
+  "userId": 5,
+  "referenceId": "ORD-102",
+  "type": "ORDER_PLACED",
+  "channel": "EMAIL",
+  "recipient": "user@example.com",
+  "subject": "Order Confirmation #102",
+  "status": "SENT",
+  "retryCount": 0,
+  "failureReason": null,
+  "createdAt": "2026-07-05T14:30:00",
+  "sentAt": "2026-07-05T14:30:05"
+}
+```
 
 ### Token management (refresh token pattern)
 

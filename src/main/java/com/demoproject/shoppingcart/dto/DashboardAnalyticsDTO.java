@@ -16,8 +16,9 @@ public class DashboardAnalyticsDTO {
     private Long totalUsers;
     private Long totalOrders;
     private Long totalRevenue;
+    private Long totalEmailsSent;
+    private Long totalEmailsFailed;
     private List<OrderStatusCountDTO> ordersByStatus;
     private List<MonthlySalesDTO> monthlySalesGraph;
     private List<TopProductDTO> topSellingProducts;
 }
-
