@@ -35,8 +35,8 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     public DashboardAnalyticsDTO getDashboardAnalytics() {
         DashboardAnalyticsDTO analytics = new DashboardAnalyticsDTO();
 
-        // Total users (excluding admins)
-        Long totalUsers = userRepository.countByRoleNot(Role.ROLE_ADMIN);
+        // Active users (excluding admins, must be active)
+        Long totalUsers = userRepository.countByRoleAndActive(Role.ROLE_USER, true);
         analytics.setTotalUsers(totalUsers);
 
         // Total orders with successful payments

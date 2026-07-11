@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -624,7 +625,7 @@ public class AmazonScraperServiceImpl implements AmazonScraperService {
             return new int[]{0, 0, 0};
         }
 
-        List<DeliveryPartner> activePartners = deliveryPartnerRepository.findByStatus(DeliveryPartnerStatus.APPROVED);
+        List<DeliveryPartner> activePartners = deliveryPartnerRepository.findByStatus(DeliveryPartnerStatus.APPROVED, Pageable.unpaged()).getContent();
 
         Random random = new Random();
         int ordersCreated = 0;

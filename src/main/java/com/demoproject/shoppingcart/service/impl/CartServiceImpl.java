@@ -176,6 +176,13 @@ public class CartServiceImpl implements CartService {
                 ))
                 .collect(Collectors.toList());
 
-        return new CartDTO(itemDTOs, cart.getTotalPrice());
+        Long subTotal = cart.getTotalPrice();
+        Long tax = 0L; // GST included in MRP
+        Long platformFee = 5L; // Rs. 5 platform fee
+        Long shippingFee = (subTotal > 599L || subTotal == 0L) ? 0L : 50L; // Free above Rs. 599, else Rs. 50. If 0, no shipping.
+        
+        Long grandTotal = (subTotal == 0L) ? 0L : (subTotal + tax + shippingFee + platformFee);
+
+        return new CartDTO(itemDTOs, subTotal, subTotal, tax, shippingFee, platformFee, grandTotal);
     }
 }

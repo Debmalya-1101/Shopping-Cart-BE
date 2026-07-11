@@ -22,8 +22,10 @@ public class AdminShipmentController {
     }
 
     @GetMapping("/unassigned")
-    public ResponseEntity<List<ShipmentResponseDTO>> getUnassignedShipments() {
-        return ResponseEntity.ok(shipmentService.getUnassignedShipments());
+    public ResponseEntity<com.demoproject.shoppingcart.dto.PageResponse<ShipmentResponseDTO>> getUnassignedShipments(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(shipmentService.getUnassignedShipments(page, size));
     }
 
     @PostMapping("/{shipmentId}/assign/{partnerId}")

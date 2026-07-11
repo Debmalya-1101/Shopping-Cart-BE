@@ -11,6 +11,11 @@ import com.demoproject.shoppingcart.service.ShipmentService;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import com.demoproject.shoppingcart.dto.PageResponse;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -89,11 +94,16 @@ public class ShipmentServiceImpl implements ShipmentService {
     // ── Admin: Assign Delivery Partner ────────────────────────────────────────
 
     @Override
-    public List<ShipmentResponseDTO> getUnassignedShipments() {
-        return shipmentRepository.findByStatusIn(List.of(ShipmentStatus.CREATED, ShipmentStatus.DELIVERY_FAILED))
-                .stream()
+    public PageResponse<ShipmentResponseDTO> getUnassignedShipments(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<Shipment> shipmentPage = shipmentRepository.findByStatusIn(List.of(ShipmentStatus.CREATED, ShipmentStatus.DELIVERY_FAILED), pageable);
+        
+        List<ShipmentResponseDTO> content = shipmentPage.getContent().stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
+                
+        return new PageResponse<>(content, shipmentPage.getNumber(), shipmentPage.getSize(), 
+                shipmentPage.getTotalElements(), shipmentPage.getTotalPages(), shipmentPage.isLast());
     }
 
     @Override
@@ -201,17 +211,25 @@ public class ShipmentServiceImpl implements ShipmentService {
     // ── Delivery Partner APIs ─────────────────────────────────────────────────
 
     @Override
-    public List<ShipmentResponseDTO> getActiveShipmentsForPartner(Long partnerId) {
-        return shipmentRepository.findByDeliveryPartnerIdAndStatusIn(partnerId,
-                List.of(ShipmentStatus.ASSIGNED, ShipmentStatus.PICKED_UP, ShipmentStatus.OUT_FOR_DELIVERY))
-                .stream().map(this::mapToDTO).collect(Collectors.toList());
+    public PageResponse<ShipmentResponseDTO> getActiveShipmentsForPartner(Long partnerId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "updatedAt"));
+        Page<Shipment> shipmentPage = shipmentRepository.findByDeliveryPartnerIdAndStatusIn(partnerId,
+                List.of(ShipmentStatus.ASSIGNED, ShipmentStatus.PICKED_UP, ShipmentStatus.OUT_FOR_DELIVERY), pageable);
+                
+        List<ShipmentResponseDTO> content = shipmentPage.getContent().stream().map(this::mapToDTO).collect(Collectors.toList());
+        return new PageResponse<>(content, shipmentPage.getNumber(), shipmentPage.getSize(), 
+                shipmentPage.getTotalElements(), shipmentPage.getTotalPages(), shipmentPage.isLast());
     }
 
     @Override
-    public List<ShipmentResponseDTO> getShipmentHistoryForPartner(Long partnerId) {
-        return shipmentRepository.findByDeliveryPartnerIdAndStatusIn(partnerId,
-                List.of(ShipmentStatus.DELIVERED, ShipmentStatus.DELIVERY_FAILED, ShipmentStatus.RETURNED))
-                .stream().map(this::mapToDTO).collect(Collectors.toList());
+    public PageResponse<ShipmentResponseDTO> getShipmentHistoryForPartner(Long partnerId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "updatedAt"));
+        Page<Shipment> shipmentPage = shipmentRepository.findByDeliveryPartnerIdAndStatusIn(partnerId,
+                List.of(ShipmentStatus.DELIVERED, ShipmentStatus.DELIVERY_FAILED, ShipmentStatus.RETURNED), pageable);
+                
+        List<ShipmentResponseDTO> content = shipmentPage.getContent().stream().map(this::mapToDTO).collect(Collectors.toList());
+        return new PageResponse<>(content, shipmentPage.getNumber(), shipmentPage.getSize(), 
+                shipmentPage.getTotalElements(), shipmentPage.getTotalPages(), shipmentPage.isLast());
     }
 
     @Override
@@ -323,10 +341,13 @@ public class ShipmentServiceImpl implements ShipmentService {
             }
             case OUT_FOR_DELIVERY -> {
                 syncOrderStatus(order, OrderStatus.OUT_FOR_DELIVERY);
+                String partnerName = shipment.getDeliveryPartner() != null ? shipment.getDeliveryPartner().getFullName() : "Assigned Partner";
+                String partnerPhone = shipment.getDeliveryPartner() != null ? shipment.getDeliveryPartner().getPhoneNumber() : "N/A";
                 eventPublisher.publishEvent(new ShipmentOutForDeliveryEvent(
                         shipment.getId(), order.getId(),
                         user.getId(), user.getEmailId(),
                         shipment.getTrackingNumber(),
+                        partnerName, partnerPhone,
                         shipment.getExpectedDeliveryDate(),
                         LocalDateTime.now()));
             }
