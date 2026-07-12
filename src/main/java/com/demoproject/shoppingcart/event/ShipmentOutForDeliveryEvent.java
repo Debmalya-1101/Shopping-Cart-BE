@@ -22,6 +22,8 @@ public class ShipmentOutForDeliveryEvent {
     private Long userId;
     private String userEmail;
     private String trackingNumber;
+    private String partnerName;
+    private String partnerPhone;
     private LocalDate expectedDeliveryDate;
     private LocalDateTime outForDeliveryAt;
 }

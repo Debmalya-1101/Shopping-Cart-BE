@@ -12,6 +12,10 @@ import java.util.List;
 @NoArgsConstructor
 public class OrderResponseDTO {
     private Long orderId;
+    private Long subTotal;
+    private Long tax;
+    private Long shippingFee;
+    private Long platformFee;
     private Long total;
     private String status;
     private String paymentStatus;

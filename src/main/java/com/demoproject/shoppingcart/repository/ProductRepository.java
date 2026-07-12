@@ -14,4 +14,8 @@ public interface ProductRepository extends JpaRepository<Product, Long>,
 
     @Query("SELECT DISTINCT p.brand FROM Product p WHERE p.active = true AND p.brand IS NOT NULL ORDER BY p.brand")
     List<String> findDistinctBrands();
+
+    List<Product> findTop15ByActiveTrueOrderByRatingDescRatingCountDesc();
+    
+    List<Product> findTop15ByActiveTrueOrderByCreatedAtDesc();
 }

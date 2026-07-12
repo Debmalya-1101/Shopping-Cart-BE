@@ -12,6 +12,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 
@@ -51,8 +52,10 @@ public class DeliveryPartnerFeedbackController {
     }
 
     @GetMapping
-    public ResponseEntity<List<DeliveryFeedbackResponseDTO>> getFeedbackList() {
+    public ResponseEntity<com.demoproject.shoppingcart.dto.PageResponse<DeliveryFeedbackResponseDTO>> getFeedbackList(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
         Long partnerId = getLoggedInPartnerId();
-        return ResponseEntity.ok(deliveryFeedbackService.getFeedbackForPartner(partnerId));
+        return ResponseEntity.ok(deliveryFeedbackService.getFeedbackForPartner(partnerId, page, size));
     }
 }

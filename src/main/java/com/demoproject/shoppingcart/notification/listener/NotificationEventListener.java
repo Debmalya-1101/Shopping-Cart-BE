@@ -135,6 +135,8 @@ public class NotificationEventListener {
         Map<String, Object> payload = new HashMap<>();
         payload.put("orderId", event.getOrderId());
         payload.put("trackingNumber", event.getTrackingNumber());
+        payload.put("partnerName", event.getPartnerName());
+        payload.put("partnerPhone", event.getPartnerPhone());
         payload.put("expectedDeliveryDate", event.getExpectedDeliveryDate());
         payload.put("outForDeliveryAt", event.getOutForDeliveryAt());
 

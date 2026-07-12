@@ -33,6 +33,10 @@ public class Order {
 			cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<OrderItem> items = new ArrayList<>();
 
+	private Long subTotal;
+	private Long tax;
+	private Long shippingFee;
+	private Long platformFee;
 	private Long total;
 
 	// Shipping snapshot info

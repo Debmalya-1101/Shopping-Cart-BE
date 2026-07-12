@@ -96,6 +96,13 @@ On failure the backend redirects to:
 <OAUTH2_REDIRECT_URI>?error=<reason>
 ```
 
+### Home Page
+
+| Method | Path | Auth | Request | Response |
+|---|---|---|---|---|
+| GET | `/api/home/featured-products` | Public | None | `List<ProductListDTO>` |
+| GET | `/api/home/new-arrivals` | Public | None | `List<ProductListDTO>` |
+
 ### Products
 
 | Method | Path | Auth | Request | Response |
@@ -127,6 +134,9 @@ Supported product list query params:
 | DELETE | `/api/cart/item/{itemId}` | Bearer | Path param | `CartDTO` |
 | DELETE | `/api/cart/clear` | Bearer | None | `String` |
 
+> [!NOTE]
+> **Cart Calculations:** The `CartDTO` now includes `subTotal`, `tax`, `shippingFee`, `platformFee`, and `grandTotal`. These are calculated on the backend (e.g., Shipping is free above Rs. 599, else Rs. 50; Platform fee is Rs. 5). The frontend no longer needs to calculate these manually.
+
 ### Wishlist
 
 | Method | Path | Auth | Request | Response |
@@ -155,6 +165,9 @@ Supported product list query params:
 | GET | `/api/orders` | Bearer | None | `List<OrderResponseDTO>` |
 | GET | `/api/orders/{orderId}` | Bearer | Path param | `OrderDetailDTO` |
 
+> [!NOTE]
+> **Order Calculations:** The `OrderResponseDTO` and `OrderDetailDTO` now include `subTotal`, `tax`, `shippingFee`, `platformFee`, and `total` / `grandTotal`. These match the cart calculations and are securely computed on the backend during checkout.
+
 ### Payments
 
 | Method | Path | Auth | Request | Response |
@@ -177,6 +190,22 @@ Supported product list query params:
 | PUT | `/api/reviews/{id}` | Bearer | `UpdateReviewRequest` | `ReviewDTO` |
 | DELETE | `/api/reviews/{id}` | Bearer | Path param | `String` |
 | GET | `/api/reviews/product/{productId}?page=0&size=10` | Bearer | Path + query | `PageResponse<ReviewDTO>` |
+
+### Admin Users
+
+| Method | Path | Auth | Request | Response |
+|---|---|---|---|---|
+| GET | `/api/admin/users` | Admin Bearer | Query params | `PageResponse<AdminUserDTO>` |
+| GET | `/api/admin/users/{id}` | Admin Bearer | Path param | `AdminUserDTO` |
+| PUT | `/api/admin/users/{id}/roles` | Admin Bearer | `role` enum | `AdminUserDTO` |
+| PUT | `/api/admin/users/{id}/status` | Admin Bearer | `active` boolean | `AdminUserDTO` |
+
+Supported `/api/admin/users` query params:
+- `role`
+- `active`
+- `search`
+- `page` default `0`
+- `size` default `10`
 
 ### Admin Inventory
 
@@ -259,6 +288,9 @@ Supported admin order query params:
 |---|---|---|---|
 | GET | `/api/admin/analytics/dashboard` | Admin Bearer | None | `DashboardAnalyticsDTO` |
 
+> [!NOTE]
+> **Dashboard Metrics:** The backend returns pre-calculated top-level metrics and aggregated chart data. The `totalUsers` metric has been optimized to exclusively count active user accounts (`active = true` and `role = ROLE_USER`). This prevents the frontend from needing to fetch all users and calculate aggregations on the client side.
+
 ### Admin Notifications
 
 | Method | Path | Auth | Request | Response |
@@ -309,15 +341,17 @@ Used to build the attributes section of the product add/edit form.
 
 | Method | Path | Auth | Request | Response |
 |---|---|---|---|---|
-| GET | `/api/admin/delivery-partners` | Admin Bearer | `?status=` (optional) | `List<DeliveryPartnerResponseDTO>` |
-| GET | `/api/admin/delivery-partners/{id}` | Admin Bearer | Path param | `DeliveryPartnerResponseDTO` |
+| GET | `/api/admin/delivery-partners?status=PENDING&page=0&size=10` | Admin Bearer | None | `PageResponse<DeliveryPartnerResponseDTO>` |
+| GET | `/api/admin/delivery-partners/{id}` | Admin Bearer | None | `DeliveryPartnerResponseDTO` |
 | PUT | `/api/admin/delivery-partners/{id}/status` | Admin Bearer | `DeliveryPartnerStatusUpdateRequest` | `DeliveryPartnerResponseDTO` |
+| GET | `/api/admin/delivery-partners/{id}/feedback?page=0&size=10` | Admin Bearer | None | `PageResponse<AdminDeliveryFeedbackResponseDTO>` |
 
 ### Admin Shipments
 
 | Method | Path | Auth | Request | Response |
 |---|---|---|---|---|
-| GET | `/api/admin/shipments/unassigned` | Admin Bearer | None | `List<ShipmentResponseDTO>` |
+| GET | `/api/admin/shipments/unassigned?page=0&size=10` | Admin Bearer | None | `PageResponse<ShipmentResponseDTO>` |
+| GET | `/api/admin/shipments/order/{orderId}` | Admin Bearer | Path param | `ShipmentResponseDTO` |
 | POST | `/api/admin/shipments/{shipmentId}/assign/{partnerId}` | Admin Bearer | Path params | `ShipmentResponseDTO` |
 
 ### Delivery Partner Dashboard
@@ -325,8 +359,8 @@ Used to build the attributes section of the product add/edit form.
 | Method | Path | Auth | Request | Response |
 |---|---|---|---|---|
 | GET | `/api/delivery-partner/shipments/dashboard` | DP Bearer | None | `DeliveryPartnerDashboardDTO` |
-| GET | `/api/delivery-partner/shipments/active` | DP Bearer | None | `List<ShipmentResponseDTO>` |
-| GET | `/api/delivery-partner/shipments/history` | DP Bearer | None | `List<ShipmentResponseDTO>` |
+| GET | `/api/delivery-partner/shipments/active?page=0&size=10` | DP Bearer | None | `PageResponse<ShipmentResponseDTO>` |
+| GET | `/api/delivery-partner/shipments/history?page=0&size=10` | DP Bearer | None | `PageResponse<ShipmentResponseDTO>` |
 | GET | `/api/delivery-partner/shipments/{id}` | DP Bearer | Path param | `ShipmentResponseDTO` |
 | PUT | `/api/delivery-partner/shipments/{id}/status` | DP Bearer | `ShipmentStatusUpdateRequest` | `ShipmentResponseDTO` |
 
@@ -335,9 +369,8 @@ Used to build the attributes section of the product add/edit form.
 | Method | Path | Auth | Request | Response |
 |---|---|---|---|---|
 | POST | `/api/orders/{orderId}/delivery-feedback` | Bearer (User) | `DeliveryFeedbackRequestDTO` | `DeliveryFeedbackResponseDTO` |
-| GET | `/api/delivery-partner/feedback` | DP Bearer | None | `List<DeliveryFeedbackResponseDTO>` |
 | GET | `/api/delivery-partner/feedback/summary` | DP Bearer | None | `DeliveryPartnerRatingSummaryDTO` |
-| GET | `/api/admin/delivery-partners/{id}/feedback` | Admin Bearer | Path param | `List<AdminDeliveryFeedbackResponseDTO>` |
+| GET | `/api/delivery-partner/feedback?page=0&size=10` | DP Bearer | None | `PageResponse<DeliveryFeedbackResponseDTO>` |
 | GET | `/api/admin/delivery-partners/ratings` | Admin Bearer | None | `List<DeliveryPartnerRatingSummaryDTO>` |
 
 ## Email Notifications (Backend Driven)

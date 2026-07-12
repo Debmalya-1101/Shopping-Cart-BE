@@ -10,6 +10,12 @@ import com.demoproject.shoppingcart.service.DeliveryFeedbackService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import com.demoproject.shoppingcart.dto.PageResponse;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -88,8 +94,11 @@ public class DeliveryFeedbackServiceImpl implements DeliveryFeedbackService {
     }
 
     @Override
-    public List<DeliveryFeedbackResponseDTO> getFeedbackForPartner(Long partnerId) {
-        return deliveryFeedbackRepository.findByDeliveryPartnerId(partnerId).stream()
+    public PageResponse<DeliveryFeedbackResponseDTO> getFeedbackForPartner(Long partnerId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<DeliveryFeedback> feedbackPage = deliveryFeedbackRepository.findByDeliveryPartnerId(partnerId, pageable);
+        
+        List<DeliveryFeedbackResponseDTO> content = feedbackPage.getContent().stream()
                 .map(f -> new DeliveryFeedbackResponseDTO(
                         f.getId(),
                         f.getOrder().getId(),
@@ -98,6 +107,9 @@ public class DeliveryFeedbackServiceImpl implements DeliveryFeedbackService {
                         f.getCreatedAt()
                 ))
                 .collect(Collectors.toList());
+                
+        return new PageResponse<>(content, feedbackPage.getNumber(), feedbackPage.getSize(), 
+                feedbackPage.getTotalElements(), feedbackPage.getTotalPages(), feedbackPage.isLast());
     }
 
     @Override
@@ -113,8 +125,11 @@ public class DeliveryFeedbackServiceImpl implements DeliveryFeedbackService {
     }
 
     @Override
-    public List<AdminDeliveryFeedbackResponseDTO> getAdminFeedbackForPartner(Long partnerId) {
-        return deliveryFeedbackRepository.findByDeliveryPartnerId(partnerId).stream()
+    public PageResponse<AdminDeliveryFeedbackResponseDTO> getAdminFeedbackForPartner(Long partnerId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<DeliveryFeedback> feedbackPage = deliveryFeedbackRepository.findByDeliveryPartnerId(partnerId, pageable);
+        
+        List<AdminDeliveryFeedbackResponseDTO> content = feedbackPage.getContent().stream()
                 .map(f -> new AdminDeliveryFeedbackResponseDTO(
                         f.getId(),
                         f.getOrder().getId(),
@@ -128,6 +143,9 @@ public class DeliveryFeedbackServiceImpl implements DeliveryFeedbackService {
                         f.getCreatedAt()
                 ))
                 .collect(Collectors.toList());
+                
+        return new PageResponse<>(content, feedbackPage.getNumber(), feedbackPage.getSize(), 
+                feedbackPage.getTotalElements(), feedbackPage.getTotalPages(), feedbackPage.isLast());
     }
 
     @Override

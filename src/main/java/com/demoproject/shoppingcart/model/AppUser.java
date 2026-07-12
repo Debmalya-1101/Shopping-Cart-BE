@@ -38,6 +38,9 @@ public class AppUser {
 	@Column(nullable = false)
 	private Role role = Role.ROLE_USER; // USER or ADMIN
 
+	@Column(nullable = false)
+	private Boolean active = true;
+
 	// ============================================
 	// OAuth2 / Social Login Fields
 	// ============================================

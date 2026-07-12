@@ -6,6 +6,8 @@ import com.demoproject.shoppingcart.model.DeliveryPartnerStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.util.List;
 import java.util.Optional;
 
@@ -13,5 +15,5 @@ import java.util.Optional;
 public interface DeliveryPartnerRepository extends JpaRepository<DeliveryPartner, Long> {
     Optional<DeliveryPartner> findByUser(AppUser user);
     Optional<DeliveryPartner> findByUserId(Long userId);
-    List<DeliveryPartner> findByStatus(DeliveryPartnerStatus status);
+    Page<DeliveryPartner> findByStatus(DeliveryPartnerStatus status, Pageable pageable);
 }

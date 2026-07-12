@@ -107,7 +107,8 @@ public class SecurityConfig {
                             "/oauth2/**",
                             // OAuth2 callback    : GET  /login/oauth2/code/{provider}
                             "/login/oauth2/**",
-                            "/api/products/**"
+                            "/api/products/**",
+                            "/api/home/**"
                     ).permitAll()
 
                     // ── Admin endpoints ───────────────────────────────────────────

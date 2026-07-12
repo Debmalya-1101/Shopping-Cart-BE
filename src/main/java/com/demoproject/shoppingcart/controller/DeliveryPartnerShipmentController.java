@@ -50,15 +50,19 @@ public class DeliveryPartnerShipmentController {
     }
 
     @GetMapping("/active")
-    public ResponseEntity<List<ShipmentResponseDTO>> getActiveShipments() {
+    public ResponseEntity<com.demoproject.shoppingcart.dto.PageResponse<ShipmentResponseDTO>> getActiveShipments(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
         Long partnerId = getLoggedInPartnerId();
-        return ResponseEntity.ok(shipmentService.getActiveShipmentsForPartner(partnerId));
+        return ResponseEntity.ok(shipmentService.getActiveShipmentsForPartner(partnerId, page, size));
     }
 
     @GetMapping("/history")
-    public ResponseEntity<List<ShipmentResponseDTO>> getShipmentHistory() {
+    public ResponseEntity<com.demoproject.shoppingcart.dto.PageResponse<ShipmentResponseDTO>> getShipmentHistory(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
         Long partnerId = getLoggedInPartnerId();
-        return ResponseEntity.ok(shipmentService.getShipmentHistoryForPartner(partnerId));
+        return ResponseEntity.ok(shipmentService.getShipmentHistoryForPartner(partnerId, page, size));
     }
 
     @GetMapping("/{id}")

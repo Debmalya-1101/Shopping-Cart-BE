@@ -8,5 +8,10 @@ import java.util.List;
 @NoArgsConstructor
 public class CartDTO {
     private List<CartItemDTO> items;
-    private Long cartTotal;
+    private Long cartTotal; // kept for backward compatibility if needed, but we'll add others
+    private Long subTotal;
+    private Long tax;
+    private Long shippingFee;
+    private Long platformFee;
+    private Long grandTotal;
 }

@@ -128,7 +128,18 @@ public class OrderServiceImpl implements OrderService {
         }).toList();
 
         order.setItems(orderItems);
-        order.setTotal(orderItems.stream().mapToLong(i -> i.getPrice() * i.getQuantity()).sum());
+        
+        Long subTotal = orderItems.stream().mapToLong(i -> i.getPrice() * i.getQuantity()).sum();
+        Long tax = 0L;
+        Long platformFee = 5L;
+        Long shippingFee = (subTotal > 599L || subTotal == 0L) ? 0L : 50L;
+        Long total = (subTotal == 0L) ? 0L : (subTotal + tax + shippingFee + platformFee);
+
+        order.setSubTotal(subTotal);
+        order.setTax(tax);
+        order.setPlatformFee(platformFee);
+        order.setShippingFee(shippingFee);
+        order.setTotal(total);
 
         Order savedOrder = orderRepository.save(order);
 
@@ -360,6 +371,10 @@ public class OrderServiceImpl implements OrderService {
 
         return new OrderResponseDTO(
                 order.getId(),
+                order.getSubTotal(),
+                order.getTax(),
+                order.getShippingFee(),
+                order.getPlatformFee(),
                 order.getTotal(),
                 order.getStatus().name(),
                 order.getPaymentStatus() != null ? order.getPaymentStatus().name() : "PENDING",
@@ -404,6 +419,10 @@ public class OrderServiceImpl implements OrderService {
                 order.getStatus().name(),
                 order.getPaymentStatus().name(),
                 order.getTotal(),
+                order.getSubTotal(),
+                order.getTax(),
+                order.getShippingFee(),
+                order.getPlatformFee(),
                 order.getCreatedAt(),
                 order.getUpdatedAt(),
                 order.getName(),

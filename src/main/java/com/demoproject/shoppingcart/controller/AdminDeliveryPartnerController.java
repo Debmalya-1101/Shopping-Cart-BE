@@ -36,9 +36,11 @@ public class AdminDeliveryPartnerController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<DeliveryPartnerResponseDTO>> getAllDeliveryPartners(
-            @RequestParam(required = false) DeliveryPartnerStatus status) {
-        return ResponseEntity.ok(deliveryPartnerService.getAllDeliveryPartners(status));
+    public ResponseEntity<com.demoproject.shoppingcart.dto.PageResponse<DeliveryPartnerResponseDTO>> getAllDeliveryPartners(
+            @RequestParam(required = false) DeliveryPartnerStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(deliveryPartnerService.getAllDeliveryPartners(status, page, size));
     }
 
     @GetMapping("/{id}")
@@ -76,8 +78,11 @@ public class AdminDeliveryPartnerController {
 
     @GetMapping("/{id}/feedback")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<AdminDeliveryFeedbackResponseDTO>> getPartnerFeedback(@PathVariable Long id) {
-        return ResponseEntity.ok(deliveryFeedbackService.getAdminFeedbackForPartner(id));
+    public ResponseEntity<com.demoproject.shoppingcart.dto.PageResponse<AdminDeliveryFeedbackResponseDTO>> getPartnerFeedback(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(deliveryFeedbackService.getAdminFeedbackForPartner(id, page, size));
     }
 
     @GetMapping("/ratings")

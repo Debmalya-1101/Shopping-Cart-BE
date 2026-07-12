@@ -14,6 +14,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import com.demoproject.shoppingcart.dto.PageResponse;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -93,14 +99,19 @@ public class DeliveryPartnerServiceImpl implements DeliveryPartnerService {
     }
 
     @Override
-    public List<DeliveryPartnerResponseDTO> getAllDeliveryPartners(DeliveryPartnerStatus status) {
-        List<DeliveryPartner> list;
+    public PageResponse<DeliveryPartnerResponseDTO> getAllDeliveryPartners(DeliveryPartnerStatus status, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<DeliveryPartner> partnerPage;
+        
         if (status != null) {
-            list = deliveryPartnerRepository.findByStatus(status);
+            partnerPage = deliveryPartnerRepository.findByStatus(status, pageable);
         } else {
-            list = deliveryPartnerRepository.findAll();
+            partnerPage = deliveryPartnerRepository.findAll(pageable);
         }
-        return list.stream().map(this::mapToDTO).collect(Collectors.toList());
+        
+        List<DeliveryPartnerResponseDTO> content = partnerPage.getContent().stream().map(this::mapToDTO).collect(Collectors.toList());
+        return new PageResponse<>(content, partnerPage.getNumber(), partnerPage.getSize(), 
+                partnerPage.getTotalElements(), partnerPage.getTotalPages(), partnerPage.isLast());
     }
 
     @Override

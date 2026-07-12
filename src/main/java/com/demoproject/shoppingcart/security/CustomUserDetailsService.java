@@ -30,6 +30,10 @@ public class CustomUserDetailsService implements UserDetailsService {
         return new User(
                 user.getUserName(),   // principal username
                 user.getPassword(),   // bcrypt hash
+                user.getActive(),     // enabled
+                true,                 // accountNonExpired
+                true,                 // credentialsNonExpired
+                true,                 // accountNonLocked
                 List.of(authority)
         );
     }

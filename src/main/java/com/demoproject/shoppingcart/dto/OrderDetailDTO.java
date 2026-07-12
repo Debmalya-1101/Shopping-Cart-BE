@@ -22,6 +22,10 @@ public class OrderDetailDTO {
     private String orderStatus;
     private String paymentStatus;
     private Long totalAmount;
+    private Long subTotal;
+    private Long tax;
+    private Long shippingFee;
+    private Long platformFee;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
