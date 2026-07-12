@@ -255,13 +255,21 @@ public class OrderServiceImpl implements OrderService {
 
         // Release reserved stock back to available
         for (OrderItem item : order.getItems()) {
-            inventoryService.cancelOrderStock(
-                    item.getProduct().getId(),
-                    item.getQuantity().intValue(),
-                    "ORDER_CANCEL",
-                    order.getId().toString(),
-                    "Order cancelled by user"
-            );
+            try {
+                String notes = "Order cancelled by user";
+                if (notes.length() > 255) {
+                    notes = notes.substring(0, 255);
+                }
+                inventoryService.cancelOrderStock(
+                        item.getProduct().getId(),
+                        item.getQuantity().intValue(),
+                        "ORDER_CANCEL",
+                        order.getId().toString(),
+                        notes
+                );
+            } catch (Exception e) {
+                System.err.println("Failed to return inventory for order " + orderId + ": " + e.getMessage());
+            }
         }
 
         eventPublisher.publishEvent(new OrderCancelledEvent(

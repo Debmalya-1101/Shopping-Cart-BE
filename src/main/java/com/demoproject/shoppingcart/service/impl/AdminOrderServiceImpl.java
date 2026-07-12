@@ -89,19 +89,23 @@ public class AdminOrderServiceImpl implements AdminOrderService {
         order.setAdminCancelReason(reason);
         orderRepository.save(order);
 
-        // Release inventory — stock was consumed at payment; return it to available pool
+        // Release inventory - stock was consumed at payment; return it to available pool
         for (OrderItem item : order.getItems()) {
             try {
+                String notes = "Admin cancelled order: " + reason;
+                if (notes.length() > 255) {
+                    notes = notes.substring(0, 255);
+                }
                 inventoryService.cancelOrderStock(
                         item.getProduct().getId(),
                         item.getQuantity().intValue(),
                         "ORDER_CANCEL",
                         order.getId().toString(),
-                        "Admin cancelled order: " + reason
+                        notes
                 );
             } catch (Exception e) {
-                // Log but don't fail — inventory can be reconciled separately
-                // In production, wire this to a dead-letter queue or alert
+                // Log but don't fail - inventory can be reconciled separately
+                System.err.println("Failed to return inventory for order " + orderId + ": " + e.getMessage());
             }
         }
 
