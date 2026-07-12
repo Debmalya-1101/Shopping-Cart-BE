@@ -35,4 +35,16 @@ public class AdminShipmentController {
         ShipmentResponseDTO response = shipmentService.assignDeliveryPartner(shipmentId, partnerId);
         return ResponseEntity.ok(response);
     }
+
+    @GetMapping("/order/{orderId}")
+    public ResponseEntity<?> getShipmentByOrderId(@PathVariable Long orderId) {
+        try {
+            return ResponseEntity.ok(shipmentService.getShipmentByOrderId(orderId));
+        } catch (RuntimeException e) {
+            if (e.getMessage() != null && e.getMessage().contains("Shipment not found")) {
+                return ResponseEntity.status(404).body(com.demoproject.shoppingcart.dto.ApiResponse.failure(e.getMessage()));
+            }
+            throw e;
+        }
+    }
 }

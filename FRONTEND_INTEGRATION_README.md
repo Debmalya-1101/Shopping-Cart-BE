@@ -351,6 +351,7 @@ Used to build the attributes section of the product add/edit form.
 | Method | Path | Auth | Request | Response |
 |---|---|---|---|---|
 | GET | `/api/admin/shipments/unassigned?page=0&size=10` | Admin Bearer | None | `PageResponse<ShipmentResponseDTO>` |
+| GET | `/api/admin/shipments/order/{orderId}` | Admin Bearer | Path param | `ShipmentResponseDTO` |
 | POST | `/api/admin/shipments/{shipmentId}/assign/{partnerId}` | Admin Bearer | Path params | `ShipmentResponseDTO` |
 
 ### Delivery Partner Dashboard
