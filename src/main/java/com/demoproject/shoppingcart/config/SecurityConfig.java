@@ -108,7 +108,11 @@ public class SecurityConfig {
                             // OAuth2 callback    : GET  /login/oauth2/code/{provider}
                             "/login/oauth2/**",
                             "/api/products/**",
-                            "/api/home/**"
+                            "/api/home/**",
+                            // Swagger / OpenAPI documentation
+                            "/v3/api-docs/**",
+                            "/swagger-ui/**",
+                            "/swagger-ui.html"
                     ).permitAll()
 
                     // ── Admin endpoints ───────────────────────────────────────────
