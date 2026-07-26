@@ -109,6 +109,7 @@ public class SecurityConfig {
                             "/login/oauth2/**",
                             "/api/products/**",
                             "/api/home/**",
+                            "/api/faqs/**",
                             // Swagger / OpenAPI documentation
                             "/v3/api-docs/**",
                             "/swagger-ui/**",
