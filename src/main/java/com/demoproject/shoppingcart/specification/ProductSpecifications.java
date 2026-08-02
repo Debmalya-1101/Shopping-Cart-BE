@@ -36,8 +36,17 @@ public class ProductSpecifications {
             if (!StringUtils.hasText(search)) {
                 return cb.conjunction();
             }
-            String pattern = "%" + search.toLowerCase() + "%";
-            return cb.like(cb.lower(root.get("name")), pattern);
+            String[] terms = search.trim().toLowerCase().split("\\s+");
+            jakarta.persistence.criteria.Predicate[] predicates = new jakarta.persistence.criteria.Predicate[terms.length];
+            for (int i = 0; i < terms.length; i++) {
+                String pattern = "%" + terms[i] + "%";
+                predicates[i] = cb.or(
+                        cb.like(cb.lower(root.get("name")), pattern),
+                        cb.like(cb.lower(root.get("fullName")), pattern),
+                        cb.like(cb.lower(root.get("brand")), pattern)
+                );
+            }
+            return cb.and(predicates);
         };
     }
 

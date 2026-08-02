@@ -373,6 +373,39 @@ Used to build the attributes section of the product add/edit form.
 | GET | `/api/delivery-partner/feedback?page=0&size=10` | DP Bearer | None | `PageResponse<DeliveryFeedbackResponseDTO>` |
 | GET | `/api/admin/delivery-partners/ratings` | Admin Bearer | None | `List<DeliveryPartnerRatingSummaryDTO>` |
 
+### AI Assistant (Chatbot)
+
+| Method | Path | Auth | Request | Response |
+|---|---|---|---|---|
+| POST | `/api/v1/chatbot` | Bearer (User) | `ChatRequest` | `String` (Plain Text) |
+
+> [!IMPORTANT]
+> **Agentic Capabilities:** This is not a static FAQ bot. It is an autonomous AI agent powered by **Google Gemini (Gemini 3.6 Flash / 3.5 Flash)** with live access to the user's cart, wishlist, orders, and products. It can perform real-time actions on behalf of the user.
+> The AI handles conversational memory automatically on the backend using the user's ID. There is no concept of a `chatId` or `conversationId` on the frontend. The backend maintains a rolling window of the last 20 messages, and auto-resets the context if the user is inactive for 30 minutes.
+
+**Example Request:**
+```json
+{
+  "message": "Add an iPhone 15 to my cart and checkout"
+}
+```
+
+**Example Response (HTTP 200 - Plain Text):**
+```text
+I've added the iPhone 15 to your cart. 
+Your total is ₹79,999. Would you like to proceed with checkout using your default address?
+```
+
+> [!TIP]
+> **Resetting Chat Context (`/clear`):** Sending the message `/clear` will immediately delete the stored conversational memory for the user in the database and return a confirmation message. You can bind a "Clear Chat" / "New Chat" button in the frontend UI to send `"message": "/clear"`.
+
+> [!NOTE]
+> **Payments in Chat:** If the user completes a checkout flow via the chatbot, the bot will return a payment URL in its text response (e.g., `https://your-frontend.com/payment/<order-id>`). The frontend can detect this URL format in the text and render it as a clickable button to initiate Razorpay checkout.
+
+> [!NOTE]
+> **Error Handling & Resilience:** If an unexpected error occurs during AI processing, the endpoint gracefully returns an HTTP 200 plain text response explaining the issue and advising the user to try again or send `/clear` to start fresh.
+> For the complete architectural and internal documentation, see [docs/agentic-chatbot-implementation-guide.md](docs/agentic-chatbot-implementation-guide.md).
+
 ## Email Notifications (Backend Driven)
 
 The backend features an event-driven Notification System. This is completely transparent to the frontend — **no new API calls are required** to trigger emails.
@@ -402,6 +435,14 @@ Events are published at each major lifecycle milestone. Future notification list
 
 
 ## Request DTOs
+
+### `ChatRequest`
+
+```json
+{
+  "message": "string"
+}
+```
 
 ### `LoginRequest`
 
