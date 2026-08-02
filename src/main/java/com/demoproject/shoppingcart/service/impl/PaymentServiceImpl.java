@@ -77,14 +77,19 @@ public class PaymentServiceImpl implements PaymentService {
         String token = "";
 
         try {
-            RazorpayClient razorpayClient = new RazorpayClient(razorpayKeyId, razorpayKeySecret);
-            JSONObject orderRequest = new JSONObject();
-            orderRequest.put("amount", order.getTotal() * 100); // paise
-            orderRequest.put("currency", "INR");
-            orderRequest.put("receipt", paymentReferenceId);
+            if (razorpayKeyId == null || razorpayKeyId.contains("replace_this") || razorpayKeySecret.contains("replace_this")) {
+                // Mock behavior for missing/dummy keys so testing can proceed without a real Razorpay account
+                token = "mock_order_" + System.currentTimeMillis();
+            } else {
+                RazorpayClient razorpayClient = new RazorpayClient(razorpayKeyId, razorpayKeySecret);
+                JSONObject orderRequest = new JSONObject();
+                orderRequest.put("amount", order.getTotal() * 100); // paise
+                orderRequest.put("currency", "INR");
+                orderRequest.put("receipt", paymentReferenceId);
 
-            com.razorpay.Order razorpayOrder = razorpayClient.orders.create(orderRequest);
-            token = razorpayOrder.get("id"); // razorpay_order_id
+                com.razorpay.Order razorpayOrder = razorpayClient.orders.create(orderRequest);
+                token = razorpayOrder.get("id"); // razorpay_order_id
+            }
         } catch (RazorpayException e) {
             throw new RuntimeException("Error while creating Razorpay order: " + e.getMessage(), e);
         }
