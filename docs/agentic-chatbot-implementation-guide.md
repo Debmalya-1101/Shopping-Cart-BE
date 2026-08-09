@@ -149,12 +149,12 @@ flowchart TD
     Client -->|1. POST JSON with Bearer Token| JWT
     JWT -->|2. Sets Auth| SecCtx
     JWT -->|3. Forwards Request| Controller
-    Controller -->|4. Invokes chat(message)| Service
+    Controller -->|"4. Invokes chat(message)"| Service
     Service -->|5. Fetches Conversation History| MemAdvisor
     MemAdvisor <-->|6. Reads/Writes Context| JpaMem
     JpaMem <-->|7. SQL Query/Save| ChatTable
     
-    Service -->|8. Assembles Prompt (System + History + User)| Gemini
+    Service -->|"8. Assembles Prompt (System + History + User)"| Gemini
     Gemini -->|9. Returns Function Call Request| Service
     Service -->|10. Dispatches Tool Execution| Tools
     
@@ -870,12 +870,12 @@ public interface UserChatContextRepository extends JpaRepository<UserChatContext
 ```mermaid
 flowchart TD
     Start([User sends prompt]) --> PromptWithTools[Spring AI attaches Tool JSON Schemas to Prompt]
-    PromptWithTools --> LLMDecide{Gemini evaluates:<br/>Does answering require a Tool?}
+    PromptWithTools --> LLMDecide{"Gemini evaluates:<br/>Does answering require a Tool?"}
     
     LLMDecide -->|No| DirectResponse[Gemini generates text response directly]
     DirectResponse --> End([Return response to User])
     
-    LLMDecide -->|Yes| FormCall[Gemini generates tool_call structure:<br/>name: 'searchProducts'<br/>args: {'search': 'shoes'}]
+    LLMDecide -->|Yes| FormCall["Gemini generates tool_call structure:<br/>name: 'searchProducts'<br/>args: {'search': 'shoes'}"]
     FormCall --> ExecuteLocal[Spring AI parses args & executes Java method on ChatbotTools]
     ExecuteLocal --> ServiceCall[ProductService.getAllProducts...]
     ServiceCall --> ReturnJson[ChatbotTools returns JSON string result]
@@ -964,7 +964,7 @@ sequenceDiagram
     Note over User,Gemini: === Turn 2: Follow-up (Context in Action) ===
     User->>Service: "Add it to my cart"
     Service->>Memory: get("105") -> Returns [Turn 1 User, Turn 1 Assistant]
-    Service->H: Prompt: [System] + [Turn 1 History] + [User: "Add it to my cart"]
+    Service->>Gemini: Prompt: [System] + [Turn 1 History] + [User: "Add it to my cart"]
     Note over Gemini: Reads Turn 1 History: understands "it" is Nike Air Max (ID 12)!
     Gemini-->>Service: tool_call: addToCart(12, 1)
     Service-->>Gemini: tool_result: Cart updated
@@ -1010,7 +1010,7 @@ flowchart TD
         GeminiApi --> HttpResp["Receives Model Response"]
     end
     
-    HttpResp --> CheckToolCall{Does response contain<br/>Function Call?}
+    HttpResp --> CheckToolCall{"Does response contain<br/>Function Call?"}
     
     subgraph ToolPipeline ["Tool Execution Pipeline"]
         CheckToolCall -->|Yes| ResolveTool["ToolCallbackResolver resolves method"]
