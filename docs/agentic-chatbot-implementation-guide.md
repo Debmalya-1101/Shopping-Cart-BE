@@ -132,12 +132,13 @@ flowchart TD
             AddrSvc["AddressService"]
             PaySvc["PaymentService"]
             WishSvc["WishlistService"]
+            FaqSvc["FaqService"]
         end
         
         subgraph DatabaseLayer ["Database & Persistence"]
             DB[(TiDB / MySQL Cloud Database)]
             ChatTable[("user_chat_context\n(userId, messages, version)")]
-            DomainTables[("products, carts, orders, addresses, payments")]
+            DomainTables[("products, carts, orders, addresses, payments, faqs")]
         end
     end
     
@@ -149,17 +150,17 @@ flowchart TD
     Client -->|1. POST JSON with Bearer Token| JWT
     JWT -->|2. Sets Auth| SecCtx
     JWT -->|3. Forwards Request| Controller
-    Controller -->|4. Invokes chat(message)| Service
+    Controller -->|"4. Invokes chat(message)"| Service
     Service -->|5. Fetches Conversation History| MemAdvisor
     MemAdvisor <-->|6. Reads/Writes Context| JpaMem
     JpaMem <-->|7. SQL Query/Save| ChatTable
     
-    Service -->|8. Assembles Prompt (System + History + User)| Gemini
+    Service -->|"8. Assembles Prompt (System + History + User)"| Gemini
     Gemini -->|9. Returns Function Call Request| Service
     Service -->|10. Dispatches Tool Execution| Tools
     
-    Tools -->|11. Invocations| CartSvc & OrderSvc & ProdSvc & AddrSvc & PaySvc & WishSvc
-    CartSvc & OrderSvc & ProdSvc & AddrSvc & PaySvc & WishSvc <-->|12. Queries / Updates| DomainTables
+    Tools -->|11. Invocations| CartSvc & OrderSvc & ProdSvc & AddrSvc & PaySvc & WishSvc & FaqSvc
+    CartSvc & OrderSvc & ProdSvc & AddrSvc & PaySvc & WishSvc & FaqSvc <-->|12. Queries / Updates| DomainTables
     
     Tools -->|13. Returns JSON String Result| Service
     Service -->|14. Sends Tool Output back to LLM| Gemini
@@ -870,12 +871,12 @@ public interface UserChatContextRepository extends JpaRepository<UserChatContext
 ```mermaid
 flowchart TD
     Start([User sends prompt]) --> PromptWithTools[Spring AI attaches Tool JSON Schemas to Prompt]
-    PromptWithTools --> LLMDecide{Gemini evaluates:<br/>Does answering require a Tool?}
+    PromptWithTools --> LLMDecide{"Gemini evaluates:<br/>Does answering require a Tool?"}
     
     LLMDecide -->|No| DirectResponse[Gemini generates text response directly]
     DirectResponse --> End([Return response to User])
     
-    LLMDecide -->|Yes| FormCall[Gemini generates tool_call structure:<br/>name: 'searchProducts'<br/>args: {'search': 'shoes'}]
+    LLMDecide -->|Yes| FormCall["Gemini generates tool_call structure:<br/>name: 'searchProducts'<br/>args: {'search': 'shoes'}"]
     FormCall --> ExecuteLocal[Spring AI parses args & executes Java method on ChatbotTools]
     ExecuteLocal --> ServiceCall[ProductService.getAllProducts...]
     ServiceCall --> ReturnJson[ChatbotTools returns JSON string result]
@@ -964,7 +965,7 @@ sequenceDiagram
     Note over User,Gemini: === Turn 2: Follow-up (Context in Action) ===
     User->>Service: "Add it to my cart"
     Service->>Memory: get("105") -> Returns [Turn 1 User, Turn 1 Assistant]
-    Service->H: Prompt: [System] + [Turn 1 History] + [User: "Add it to my cart"]
+    Service->>Gemini: Prompt: [System] + [Turn 1 History] + [User: "Add it to my cart"]
     Note over Gemini: Reads Turn 1 History: understands "it" is Nike Air Max (ID 12)!
     Gemini-->>Service: tool_call: addToCart(12, 1)
     Service-->>Gemini: tool_result: Cart updated
@@ -1010,7 +1011,7 @@ flowchart TD
         GeminiApi --> HttpResp["Receives Model Response"]
     end
     
-    HttpResp --> CheckToolCall{Does response contain<br/>Function Call?}
+    HttpResp --> CheckToolCall{"Does response contain<br/>Function Call?"}
     
     subgraph ToolPipeline ["Tool Execution Pipeline"]
         CheckToolCall -->|Yes| ResolveTool["ToolCallbackResolver resolves method"]
@@ -1224,8 +1225,8 @@ While the current implementation is robust and tailored for cloud hosting, here 
 - **Improvement:** Use `chatClient.prompt().stream().content()` with Spring's `Flux<String>` or `SseEmitter` to stream tokens in real-time for a ChatGPT-like typing effect.
 
 ### 2. Retrieval-Augmented Generation (RAG) for Store Policies
-- **Current State:** Store FAQs and return policies are hardcoded in the system prompt.
-- **Improvement:** Ingest policy documents into a Vector Database (e.g. PostgreSQL `pgvector`) and use Spring AI's `VectorStore` to dynamically inject relevant policy snippets into the prompt.
+- **Current State:** The chatbot uses a `@Tool` (`searchFaqs`) that pulls all active FAQs from the relational database and feeds them to the LLM context.
+- **Improvement:** If the FAQ list grows large (e.g. 50+ policies), loading all FAQs into context will bloat the prompt. We can ingest policy documents into a Vector Database (e.g. PostgreSQL `pgvector`) and use Spring AI's `VectorStore` to dynamically retrieve only the top 3 most relevant policy snippets via similarity search.
 
 ### 3. Redis-Backed Chat Memory for High Concurrency
 - **Current State:** `JpaChatMemory` stores context in the relational database.
