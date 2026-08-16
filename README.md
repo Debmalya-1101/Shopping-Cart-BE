@@ -5,7 +5,7 @@ An enterprise-grade, feature-rich E-Commerce RESTful API built with **Java 21** 
 🌐 **Live Application:** The frontend application consuming this deployed Render backend is live at: [https://nexis-store-sigma.vercel.app/](https://nexis-store-sigma.vercel.app/)
 
 ## 🌟 Key Highlights for Recruiters & Project Managers
-- **Agentic AI Shopping Assistant**: Integrated AI agent powered by **Spring AI 1.1** and **Google Gemini (Gemini 3.6 Flash / 3.5 Flash)** with autonomous **Tool Calling** (Cart, Orders, Products, Wishlist, Addresses, Payments) and database-backed persistent **JPA Chat Memory**.
+- **Agentic AI Shopping Assistant**: Integrated AI agent powered by **Spring AI 1.1** and **Google Gemini (Gemini 3.6 Flash / 3.5 Flash)** with autonomous **Tool Calling** (Cart, Orders, Products, Wishlist, Addresses, Payments, FAQs) and database-backed persistent **JPA Chat Memory**.
 - **Modern Tech Stack**: Leverages the latest Java 21 features and Spring Boot 3.5 for high performance and maintainability.
 - **Advanced Concurrency Handling**: Implements Optimistic Locking with Spring Retry & AOP to prevent race conditions during inventory checkout.
 - **Integrated Web Scraping**: Utilizes Microsoft Playwright to scrape real-time product data (Amazon/Flipkart).
@@ -17,7 +17,7 @@ An enterprise-grade, feature-rich E-Commerce RESTful API built with **Java 21** 
 ## 🚀 Features
 
 ### 🤖 Agentic AI Assistant
-- **Autonomous Tool Execution**: Powered by Gemini 3.6 Flash / 3.5 Flash, the AI reasons over user intent and autonomously invokes backend Java tools to search products, view/update cart, toggle wishlist items, fetch addresses, and initiate checkout.
+- **Autonomous Tool Execution**: Powered by Gemini 3.6 Flash / 3.5 Flash, the AI reasons over user intent and autonomously invokes backend Java tools to search products, view/update cart, toggle wishlist items, fetch addresses, initiate checkout, and answer generic store policy questions from the FAQ database.
 - **Persistent Chat Memory**: Database-backed conversational memory (`user_chat_context`) with sliding window limits and lazy session expiration.
 - **Protected Multi-Step Checkout**: Conversational checkout flow with explicit confirmation for destructive actions and Razorpay payment link generation.
 - **Command Support**: Includes `/clear` command for instantaneous chat state reset.

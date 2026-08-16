@@ -380,7 +380,7 @@ Used to build the attributes section of the product add/edit form.
 | POST | `/api/v1/chatbot` | Bearer (User) | `ChatRequest` | `String` (Plain Text) |
 
 > [!IMPORTANT]
-> **Agentic Capabilities:** This is not a static FAQ bot. It is an autonomous AI agent powered by **Google Gemini (Gemini 3.6 Flash / 3.5 Flash)** with live access to the user's cart, wishlist, orders, and products. It can perform real-time actions on behalf of the user.
+> **Agentic Capabilities:** This is not a static FAQ bot, though it can seamlessly answer FAQs. It is an autonomous AI agent powered by **Google Gemini (Gemini 3.6 Flash / 3.5 Flash)** with live access to the user's cart, wishlist, orders, products, and the store's dynamic FAQ database. It can perform real-time actions on behalf of the user.
 > The AI handles conversational memory automatically on the backend using the user's ID. There is no concept of a `chatId` or `conversationId` on the frontend. The backend maintains a rolling window of the last 20 messages, and auto-resets the context if the user is inactive for 30 minutes.
 
 **Example Request:**

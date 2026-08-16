@@ -132,12 +132,13 @@ flowchart TD
             AddrSvc["AddressService"]
             PaySvc["PaymentService"]
             WishSvc["WishlistService"]
+            FaqSvc["FaqService"]
         end
         
         subgraph DatabaseLayer ["Database & Persistence"]
             DB[(TiDB / MySQL Cloud Database)]
             ChatTable[("user_chat_context\n(userId, messages, version)")]
-            DomainTables[("products, carts, orders, addresses, payments")]
+            DomainTables[("products, carts, orders, addresses, payments, faqs")]
         end
     end
     
@@ -158,8 +159,8 @@ flowchart TD
     Gemini -->|9. Returns Function Call Request| Service
     Service -->|10. Dispatches Tool Execution| Tools
     
-    Tools -->|11. Invocations| CartSvc & OrderSvc & ProdSvc & AddrSvc & PaySvc & WishSvc
-    CartSvc & OrderSvc & ProdSvc & AddrSvc & PaySvc & WishSvc <-->|12. Queries / Updates| DomainTables
+    Tools -->|11. Invocations| CartSvc & OrderSvc & ProdSvc & AddrSvc & PaySvc & WishSvc & FaqSvc
+    CartSvc & OrderSvc & ProdSvc & AddrSvc & PaySvc & WishSvc & FaqSvc <-->|12. Queries / Updates| DomainTables
     
     Tools -->|13. Returns JSON String Result| Service
     Service -->|14. Sends Tool Output back to LLM| Gemini
@@ -1224,8 +1225,8 @@ While the current implementation is robust and tailored for cloud hosting, here 
 - **Improvement:** Use `chatClient.prompt().stream().content()` with Spring's `Flux<String>` or `SseEmitter` to stream tokens in real-time for a ChatGPT-like typing effect.
 
 ### 2. Retrieval-Augmented Generation (RAG) for Store Policies
-- **Current State:** Store FAQs and return policies are hardcoded in the system prompt.
-- **Improvement:** Ingest policy documents into a Vector Database (e.g. PostgreSQL `pgvector`) and use Spring AI's `VectorStore` to dynamically inject relevant policy snippets into the prompt.
+- **Current State:** The chatbot uses a `@Tool` (`searchFaqs`) that pulls all active FAQs from the relational database and feeds them to the LLM context.
+- **Improvement:** If the FAQ list grows large (e.g. 50+ policies), loading all FAQs into context will bloat the prompt. We can ingest policy documents into a Vector Database (e.g. PostgreSQL `pgvector`) and use Spring AI's `VectorStore` to dynamically retrieve only the top 3 most relevant policy snippets via similarity search.
 
 ### 3. Redis-Backed Chat Memory for High Concurrency
 - **Current State:** `JpaChatMemory` stores context in the relational database.

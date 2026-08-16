@@ -19,6 +19,7 @@ public class ChatbotTools {
     private final com.demoproject.shoppingcart.service.WishlistService wishlistService;
     private final com.demoproject.shoppingcart.service.AddressService addressService;
     private final com.demoproject.shoppingcart.service.PaymentService paymentService;
+    private final com.demoproject.shoppingcart.service.FaqService faqService;
     private final ObjectMapper objectMapper;
 
     public ChatbotTools(ProductService productService,
@@ -27,6 +28,7 @@ public class ChatbotTools {
                         com.demoproject.shoppingcart.service.WishlistService wishlistService,
                         com.demoproject.shoppingcart.service.AddressService addressService,
                         com.demoproject.shoppingcart.service.PaymentService paymentService,
+                        com.demoproject.shoppingcart.service.FaqService faqService,
                         ObjectMapper objectMapper) {
         this.productService = productService;
         this.cartService = cartService;
@@ -34,6 +36,7 @@ public class ChatbotTools {
         this.wishlistService = wishlistService;
         this.addressService = addressService;
         this.paymentService = paymentService;
+        this.faqService = faqService;
         this.objectMapper = objectMapper;
     }
 
@@ -54,6 +57,16 @@ public class ChatbotTools {
             return toJson(productService.getProductById(id));
         } catch (Exception e) {
             log.warn("getProductDetails failed: {}", e.getMessage());
+            return "Error: " + e.getMessage();
+        }
+    }
+
+    @Tool(description = "Retrieve all frequently asked questions (FAQs) when the user asks a general question about store policies, shipping, returns, or other generic store information.")
+    public String searchFaqs() {
+        try {
+            return toJson(faqService.getAllActiveFaqs());
+        } catch (Exception e) {
+            log.warn("searchFaqs failed: {}", e.getMessage());
             return "Error: " + e.getMessage();
         }
     }
