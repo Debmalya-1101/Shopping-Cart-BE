@@ -108,6 +108,7 @@ public class SecurityConfig {
                             // OAuth2 callback    : GET  /login/oauth2/code/{provider}
                             "/login/oauth2/**",
                             "/api/products/**",
+                            "/api/recommendations/**",
                             "/api/home/**",
                             "/api/faqs/**",
                             // Swagger / OpenAPI documentation

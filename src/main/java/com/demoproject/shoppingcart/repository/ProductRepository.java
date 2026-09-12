@@ -18,4 +18,6 @@ public interface ProductRepository extends JpaRepository<Product, Long>,
     List<Product> findTop15ByActiveTrueOrderByRatingDescRatingCountDesc();
     
     List<Product> findTop15ByActiveTrueOrderByCreatedAtDesc();
+
+    List<Product> findTop15ByCategoryNameInAndIdNotInAndActiveTrueOrderByRatingDesc(List<String> categories, List<Long> excludedIds);
 }

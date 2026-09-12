@@ -14,6 +14,7 @@
   - `/login/oauth2/code/google` *(OAuth2 callback — handled by the backend, not called directly)*
   - `/login/oauth2/code/facebook` *(OAuth2 callback — handled by the backend, not called directly)*
   - `/api/products/**`
+  - `/api/recommendations/**`
 - Protected routes: everything else (requires `Authorization: Bearer <accessToken>`)
 - Admin-only routes: `/api/admin/**`
 
@@ -123,6 +124,12 @@ Supported product list query params:
 - `maxPrice`
 - `sortBy` default `createdAt`, supported mapping: `createdAt`, `price`, `rating`, `name`
 - `order` default `desc`
+
+### Recommendations
+
+| Method | Path | Auth | Request | Response |
+|---|---|---|---|---|
+| GET | `/api/recommendations` | Public (Uses Bearer if available) | None | `List<ProductListDTO>` |
 
 ### Cart
 
